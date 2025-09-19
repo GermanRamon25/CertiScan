@@ -65,6 +65,7 @@ namespace CertiScan.Services
                     Paragraph textoFirma = new Paragraph("Firma del Responsable")
                         .SetTextAlignment(TextAlignment.CENTER);
                     document.Add(textoFirma);
+                    //GERMAN RAMON SOTO VALENZUELA
                 }
             }
         }
