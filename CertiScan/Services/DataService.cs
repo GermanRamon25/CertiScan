@@ -1,18 +1,16 @@
-﻿// Se especifica explícitamente que se usará el cliente de Microsoft.
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
-using CertiScan.Models; // Asegúrate que el namespace a tus Modelos sea correcto
+using CertiScan.Models;
 
 namespace CertiScan.Services
 {
     public class DatabaseService
     {
-        private readonly string _connectionString = "Server=localhost\\SQLEXPRESS;Database=NotariaUIF;Trusted_Connection=True;TrustServerCertificate=True;";
+        private readonly string _connectionString = "Server=GERMAN25\\SQLEXPRESS;Database=CertiScanDB;Trusted_Connection=True;TrustServerCertificate=True;";
 
         public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto)
         {
-            // Al usar 'var', el compilador infiere el tipo correcto (Microsoft.Data.SqlClient.SqlConnection)
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
@@ -65,6 +63,73 @@ namespace CertiScan.Services
                     command.Parameters.AddWithValue("@Termino", terminoBuscado);
                     command.Parameters.AddWithValue("@Encontrado", resultadoEncontrado);
                     command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public string GetDocumentoContent(int documentoId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = "SELECT ContenidoTexto FROM Documentos WHERE Id = @Id";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Id", documentoId);
+                    var result = command.ExecuteScalar();
+                    return result != null ? result.ToString() : "Contenido no encontrado.";
+                }
+            }
+        }
+
+        public bool ValidateUser(string username, string password)
+        {
+            string passwordHash = PasswordHasher.ComputeSha256Hash(password);
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username AND PasswordHash = @PasswordHash";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Username", username);
+                    command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                    int userCount = (int)command.ExecuteScalar();
+                    return userCount > 0;
+                }
+            }
+        }
+
+        // --- MÉTODO NUEVO AÑADIDO PARA EL REGISTRO ---
+        public bool AddUser(string fullName, string username, string password)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+
+                // 1. Primero, verificamos si el nombre de usuario ya existe
+                var checkUserQuery = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username";
+                using (var checkUserCommand = new SqlCommand(checkUserQuery, connection))
+                {
+                    checkUserCommand.Parameters.AddWithValue("@Username", username);
+                    int userCount = (int)checkUserCommand.ExecuteScalar();
+                    if (userCount > 0)
+                    {
+                        // Si el usuario ya existe, lanzamos una excepción para notificarlo
+                        throw new Exception("El nombre de usuario ya está en uso. Por favor, elige otro.");
+                    }
+                }
+
+                // 2. Si no existe, procedemos a insertarlo
+                string passwordHash = PasswordHasher.ComputeSha256Hash(password);
+                var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, PasswordHash) VALUES (@FullName, @Username, @PasswordHash)";
+                using (var insertCommand = new SqlCommand(insertQuery, connection))
+                {
+                    insertCommand.Parameters.AddWithValue("@FullName", fullName);
+                    insertCommand.Parameters.AddWithValue("@Username", username);
+                    insertCommand.Parameters.AddWithValue("@PasswordHash", passwordHash);
+
+                    int rowsAffected = insertCommand.ExecuteNonQuery();
+                    return rowsAffected > 0; // Devuelve 'true' si la inserción fue exitosa
                 }
             }
         }

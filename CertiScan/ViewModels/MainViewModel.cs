@@ -5,28 +5,45 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
-using CertiScan.Models; // Asegúrate que el namespace apunte a tus Modelos
-using CertiScan.Services; // Asegúrate que el namespace apunte a tus Servicios
+using CertiScan.Models;
+using CertiScan.Services;
 
 namespace CertiScan.ViewModels
 {
-    // Heredamos de ObservableObject para poder notificar a la UI de los cambios
     public class MainViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
 
-        // --- Propiedad 'TerminoBusqueda' implementada de forma explícita ---
         private string _terminoBusqueda = string.Empty;
         public string TerminoBusqueda
         {
             get => _terminoBusqueda;
-            set => SetProperty(ref _terminoBusqueda, value); // Notifica a la UI cuando cambia
+            set => SetProperty(ref _terminoBusqueda, value);
         }
 
         public ObservableCollection<Documento> ResultadosBusqueda { get; set; }
 
-        // --- Comandos implementados de forma explícita ---
+        private Documento _selectedDocumento;
+        public Documento SelectedDocumento
+        {
+            get => _selectedDocumento;
+            set
+            {
+                if (SetProperty(ref _selectedDocumento, value) && value != null)
+                {
+                    LoadPdfContent(value.Id);
+                }
+            }
+        }
+
+        private string _pdfContent;
+        public string PdfContent
+        {
+            get => _pdfContent;
+            set => SetProperty(ref _pdfContent, value);
+        }
+
         public IRelayCommand CargarPdfCommand { get; }
         public IRelayCommand BuscarCommand { get; }
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
@@ -37,7 +54,6 @@ namespace CertiScan.ViewModels
             _pdfService = new PdfService();
             ResultadosBusqueda = new ObservableCollection<Documento>();
 
-            // Inicializamos los comandos, apuntando a los métodos que deben ejecutar
             CargarPdfCommand = new RelayCommand(CargarPdf);
             BuscarCommand = new RelayCommand(Buscar);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
@@ -47,7 +63,7 @@ namespace CertiScan.ViewModels
         {
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "Archivos PDF (.pdf)|.pdf",
+                Filter = "Archivos PDF (.pdf)|*.pdf",
                 Title = "Seleccionar archivo PDF para cargar"
             };
 
@@ -83,6 +99,7 @@ namespace CertiScan.ViewModels
             {
                 var resultados = _databaseService.BuscarTermino(TerminoBusqueda);
                 ResultadosBusqueda.Clear();
+                PdfContent = string.Empty; // Limpiar el contenido al buscar de nuevo
                 foreach (var doc in resultados)
                 {
                     ResultadosBusqueda.Add(doc);
@@ -107,24 +124,35 @@ namespace CertiScan.ViewModels
                 return;
             }
 
-            var saveFileDialog = new SaveFileDialog
+            try
             {
-                Filter = "Archivo PDF (.pdf)|.pdf",
-                Title = "Guardar Constancia",
-                FileName = $"Constancia_{TerminoBusqueda.Replace(" ", "")}{DateTime.Now:yyyyMMdd}.pdf"
-            };
+                // 1. Crear un nombre de archivo temporal para la constancia
+                string tempFileName = $"Constancia_{TerminoBusqueda.Replace(" ", "_")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string tempFilePath = Path.Combine(Path.GetTempPath(), tempFileName);
 
-            if (saveFileDialog.ShowDialog() == true)
+                // 2. Usar el servicio para crear el PDF en la ruta temporal
+                _pdfService.GenerarConstancia(tempFilePath, TerminoBusqueda, esAprobatoria);
+
+                // 3. Abrir nuestra nueva ventana de visor con la ruta del archivo temporal
+                var viewer = new PdfViewerWindow(tempFilePath);
+                viewer.Show();
+            }
+            catch (Exception ex)
             {
-                try
-                {
-                    _pdfService.GenerarConstancia(saveFileDialog.FileName, TerminoBusqueda, esAprobatoria);
-                    MessageBox.Show($"Constancia generada exitosamente en:\n{saveFileDialog.FileName}", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error al generar la constancia: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                MessageBox.Show($"Error al generar la constancia: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadPdfContent(int docId)
+        {
+            try
+            {
+                PdfContent = _databaseService.GetDocumentoContent(docId);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al cargar el contenido del documento: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                PdfContent = "Error al cargar el contenido del documento.";
             }
         }
     }
