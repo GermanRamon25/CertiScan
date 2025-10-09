@@ -14,7 +14,7 @@ namespace CertiScan.Services
         // --- ESTA ES TU CLAVE SECRETA ---
         // Puedes cambiarla por cualquier texto que quieras.
         // Esta es la clave que deberá contener el archivo "license.key".
-        private static readonly string SecretKey = "Notaria215-CertiScan-LicenciaValida-2025";
+        private static readonly string SecretKey = "Notarias-CertiScan-LicenciaValida-2025";
 
         public static bool ValidateLicense()
         {
