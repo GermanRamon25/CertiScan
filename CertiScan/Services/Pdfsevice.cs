@@ -4,6 +4,9 @@ using QuestPDF.Infrastructure;
 using System;
 using System.IO;
 using QuestPDF.Drawing;
+using System.Text; // Necesario para StringBuilder
+using UglyToad.PdfPig; // Librería nueva para leer PDF
+using UglyToad.PdfPig.Content; // Librería nueva para leer PDF
 
 namespace CertiScan.Services
 {
@@ -14,12 +17,25 @@ namespace CertiScan.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
+        // --- MÉTODO ACTUALIZADO CON LA NUEVA LIBRERÍA PDFPIG ---
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
-            // Esta función está deshabilitada porque quitamos la librería iText.
-            return string.Empty;
+            var textoProcesado = new StringBuilder();
+
+            // Usamos PdfPig para abrir y leer el documento
+            using (PdfDocument document = PdfDocument.Open(rutaArchivo))
+            {
+                foreach (Page page in document.GetPages())
+                {
+                    // Obtenemos el texto de cada página y lo añadimos
+                    textoProcesado.Append(page.Text);
+                    textoProcesado.Append(" "); // Añadimos un espacio entre páginas
+                }
+            }
+            return textoProcesado.ToString();
         }
 
+        // (El método para generar constancias no cambia, sigue usando QuestPDF)
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria)
         {
             string cuerpoDelMensaje;
@@ -40,7 +56,6 @@ namespace CertiScan.Services
                     page.Margin(30);
                     page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Helvetica"));
 
-                    // --- Encabezado ---
                     page.Header().Column(col =>
                     {
                         col.Item().Text("LIC. SERGIO AGUILASOCHO GARCÍA").Bold().FontSize(14);
@@ -50,7 +65,6 @@ namespace CertiScan.Services
                         col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                     });
 
-                    // --- Contenido Principal ---
                     page.Content().PaddingVertical(20).Column(col =>
                     {
                         col.Item().AlignRight().Text($"Fecha de Emisión: {DateTime.Now:dd/MM/yyyy HH:mm:ss}").FontSize(10);
@@ -60,19 +74,15 @@ namespace CertiScan.Services
                             text.Span(terminoBuscado);
                         });
 
-                        // --- CORRECCIÓN FINAL ---
-                        // El método correcto para justificar el texto es .Justify()
                         col.Item().PaddingTop(20).Text(text =>
                         {
-                            text.Justify(); // <-- ESTA ES LA CORRECCIÓN
+                            text.Justify();
                             text.Span(cuerpoDelMensaje);
                         });
 
-                        // Espacio para la firma
                         col.Item().AlignCenter().PaddingTop(100).Text("_________________________\nFirma del Responsable de Cumplimiento");
                     });
 
-                    // --- Pie de página (opcional) ---
                     page.Footer()
                         .AlignCenter()
                         .Text(x =>

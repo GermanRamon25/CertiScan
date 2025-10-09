@@ -8,7 +8,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using CertiScan.Services;
 using System;
-using System.IO; // Asegúrate de que este 'using' esté presente
+using System.IO;
 
 namespace CertiScan.ViewModels
 {
@@ -42,6 +42,8 @@ namespace CertiScan.ViewModels
                 {
                     LoadPdfContent(value.Id);
                 }
+                // Notificamos al comando de borrado que el estado ha cambiado.
+                DeletePdfCommand.NotifyCanExecuteChanged();
             }
         }
 
@@ -55,6 +57,7 @@ namespace CertiScan.ViewModels
         public IRelayCommand CargarPdfCommand { get; }
         public IRelayCommand BuscarCommand { get; }
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
+        public IRelayCommand DeletePdfCommand { get; } // --- NUEVO COMANDO ---
 
         public MainViewModel()
         {
@@ -67,7 +70,50 @@ namespace CertiScan.ViewModels
             CargarPdfCommand = new RelayCommand(CargarPdf);
             BuscarCommand = new RelayCommand(Buscar);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
+            DeletePdfCommand = new RelayCommand(DeletePdf, CanDeletePdf); // --- INICIALIZACIÓN DEL NUEVO COMANDO ---
         }
+
+        // --- MÉTODOS NUEVOS PARA ELIMINAR ---
+        private bool CanDeletePdf()
+        {
+            // Solo se puede borrar si hay un documento seleccionado.
+            return SelectedDocumento != null;
+        }
+
+        private void DeletePdf()
+        {
+            if (!CanDeletePdf()) return;
+
+            var result = MessageBox.Show($"¿Estás seguro de que quieres eliminar permanentemente el archivo '{SelectedDocumento.NombreArchivo}'?\n\nEsta acción no se puede deshacer.",
+                                         "Confirmar Eliminación",
+                                         MessageBoxButton.YesNo,
+                                         MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // 1. Llama al servicio para borrarlo de la BD y obtener la ruta del archivo.
+                    string filePath = _databaseService.DeleteDocument(SelectedDocumento.Id);
+
+                    // 2. Borra el archivo físico del disco.
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                    }
+
+                    // 3. Quita el documento de la lista en la pantalla.
+                    DocumentosMostrados.Remove(SelectedDocumento);
+
+                    MessageBox.Show("Documento eliminado exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ocurrió un error al eliminar el documento: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        // --- FIN DE MÉTODOS NUEVOS ---
 
         private void LoadAllDocuments()
         {
@@ -198,7 +244,9 @@ namespace CertiScan.ViewModels
                 return flowDocument;
             }
 
-            if (string.IsNullOrWhiteSpace(searchTerm))
+            text = System.Text.RegularExpressions.Regex.Replace(text, @" (\d+\.)", "\n$1");
+
+            if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
             {
                 paragraph.Inlines.Add(new Run(text));
                 flowDocument.Blocks.Add(paragraph);

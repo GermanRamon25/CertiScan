@@ -35,8 +35,11 @@
             <Button Content="Cargar PDF" Width="120" Command="{Binding CargarPdfCommand}"/>
             <TextBox Width="300" Margin="10,0" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}"/>
             <Button Content="Buscar" Width="120" Command="{Binding BuscarCommand}"/>
-        </StackPanel>
 
+            <Button Content="Eliminar PDF" Width="120" Margin="10,0,0,0" 
+                    Command="{Binding DeletePdfCommand}" 
+                    Background="#FFE88383" BorderBrush="#FFD32F2F"/>
+        </StackPanel>
         <DataGrid Grid.Row="1" 
                   ItemsSource="{Binding DocumentosMostrados}"
                   SelectedItem="{Binding SelectedDocumento}"

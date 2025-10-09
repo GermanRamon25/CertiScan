@@ -129,14 +129,12 @@ namespace CertiScan.Services
             }
         }
 
-        // --- MÉTODO NUEVO AÑADIDO PARA OBTENER TODOS LOS DOCUMENTOS ---
         public List<Documento> GetAllDocuments()
         {
             var resultados = new List<Documento>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                // Se ordenan por fecha de carga descendente para mostrar los más nuevos primero
                 var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos ORDER BY FechaCarga DESC";
                 using (var command = new SqlCommand(query, connection))
                 {
@@ -155,6 +153,45 @@ namespace CertiScan.Services
                 }
             }
             return resultados;
+        }
+
+        // --- MÉTODO NUEVO AÑADIDO PARA ELIMINAR ---
+        public string DeleteDocument(int documentId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                string filePath = null;
+
+                // 1. Primero, obtenemos la ruta física del archivo para poder borrarlo del disco.
+                var selectQuery = "SELECT RutaFisica FROM Documentos WHERE Id = @Id";
+                using (var selectCommand = new SqlCommand(selectQuery, connection))
+                {
+                    selectCommand.Parameters.AddWithValue("@Id", documentId);
+                    var result = selectCommand.ExecuteScalar();
+                    if (result != null)
+                    {
+                        filePath = result.ToString();
+                    }
+                }
+
+                if (filePath == null)
+                {
+                    // Si no se encuentra, lanzamos una excepción controlada.
+                    throw new Exception("No se encontró el documento en la base de datos.");
+                }
+
+                // 2. Después, borramos el registro de la base de datos.
+                var deleteQuery = "DELETE FROM Documentos WHERE Id = @Id";
+                using (var deleteCommand = new SqlCommand(deleteQuery, connection))
+                {
+                    deleteCommand.Parameters.AddWithValue("@Id", documentId);
+                    deleteCommand.ExecuteNonQuery();
+                }
+
+                // Devolvemos la ruta del archivo para que el ViewModel lo borre del disco.
+                return filePath;
+            }
         }
     }
 }
