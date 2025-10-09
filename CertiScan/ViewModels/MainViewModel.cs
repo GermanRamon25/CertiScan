@@ -1,12 +1,14 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
-using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
+using System.Linq;
 using System.Windows;
-using CertiScan.Models;
+using System.Windows.Documents;
+using System.Windows.Media;
 using CertiScan.Services;
+using System;
+using System.IO; // Asegúrate de que este 'using' esté presente
 
 namespace CertiScan.ViewModels
 {
@@ -19,13 +21,19 @@ namespace CertiScan.ViewModels
         public string TerminoBusqueda
         {
             get => _terminoBusqueda;
-            set => SetProperty(ref _terminoBusqueda, value);
+            set
+            {
+                if (SetProperty(ref _terminoBusqueda, value) && string.IsNullOrWhiteSpace(value))
+                {
+                    ClearSearchHighlights();
+                }
+            }
         }
 
-        public ObservableCollection<Documento> ResultadosBusqueda { get; set; }
+        public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
 
-        private Documento _selectedDocumento;
-        public Documento SelectedDocumento
+        private DocumentoViewModel _selectedDocumento;
+        public DocumentoViewModel SelectedDocumento
         {
             get => _selectedDocumento;
             set
@@ -37,11 +45,11 @@ namespace CertiScan.ViewModels
             }
         }
 
-        private string _pdfContent;
-        public string PdfContent
+        private FlowDocument _contenidoDocumento;
+        public FlowDocument ContenidoDocumento
         {
-            get => _pdfContent;
-            set => SetProperty(ref _pdfContent, value);
+            get => _contenidoDocumento;
+            set => SetProperty(ref _contenidoDocumento, value);
         }
 
         public IRelayCommand CargarPdfCommand { get; }
@@ -52,16 +60,28 @@ namespace CertiScan.ViewModels
         {
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
-            ResultadosBusqueda = new ObservableCollection<Documento>();
+            DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
+
+            LoadAllDocuments();
 
             CargarPdfCommand = new RelayCommand(CargarPdf);
             BuscarCommand = new RelayCommand(Buscar);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
         }
 
+        private void LoadAllDocuments()
+        {
+            DocumentosMostrados.Clear();
+            var documentos = _databaseService.GetAllDocuments();
+            foreach (var doc in documentos)
+            {
+                DocumentosMostrados.Add(new DocumentoViewModel(doc));
+            }
+        }
+
         private void CargarPdf()
         {
-            var openFileDialog = new OpenFileDialog
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "Archivos PDF (.pdf)|*.pdf",
                 Title = "Seleccionar archivo PDF para cargar"
@@ -76,9 +96,13 @@ namespace CertiScan.ViewModels
                     string nombreArchivo = Path.GetFileName(openFileDialog.FileName);
                     string rutaDestino = Path.Combine(carpetaDestino, nombreArchivo);
                     File.Copy(openFileDialog.FileName, rutaDestino, true);
+
                     string contenido = _pdfService.ExtraerTextoDePdf(rutaDestino);
+
                     _databaseService.GuardarDocumento(nombreArchivo, rutaDestino, contenido);
                     MessageBox.Show("¡PDF cargado y procesado exitosamente!", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoadAllDocuments();
                 }
                 catch (Exception ex)
                 {
@@ -91,6 +115,7 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda))
             {
+                ClearSearchHighlights();
                 MessageBox.Show("Por favor, ingrese un término de búsqueda.", "Advertencia", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -98,21 +123,30 @@ namespace CertiScan.ViewModels
             try
             {
                 var resultados = _databaseService.BuscarTermino(TerminoBusqueda);
-                ResultadosBusqueda.Clear();
-                PdfContent = string.Empty; // Limpiar el contenido al buscar de nuevo
-                foreach (var doc in resultados)
+                var resultadoIds = new HashSet<int>(resultados.Select(r => r.Id));
+
+                foreach (var docVm in DocumentosMostrados)
                 {
-                    ResultadosBusqueda.Add(doc);
+                    docVm.IsSearchResult = resultadoIds.Contains(docVm.Id);
                 }
+
                 _databaseService.RegistrarBusqueda(TerminoBusqueda, resultados.Count > 0);
                 if (resultados.Count == 0)
                 {
-                    MessageBox.Show("No se encontraron coincidencias para el término buscado.", "Búsqueda Finalizada", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("No se encontraron coincidencias.", "Búsqueda Finalizada", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al realizar la búsqueda: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ClearSearchHighlights()
+        {
+            foreach (var docVm in DocumentosMostrados)
+            {
+                docVm.IsSearchResult = false;
             }
         }
 
@@ -126,14 +160,11 @@ namespace CertiScan.ViewModels
 
             try
             {
-                // 1. Crear un nombre de archivo temporal para la constancia
                 string tempFileName = $"Constancia_{TerminoBusqueda.Replace(" ", "_")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
                 string tempFilePath = Path.Combine(Path.GetTempPath(), tempFileName);
 
-                // 2. Usar el servicio para crear el PDF en la ruta temporal
                 _pdfService.GenerarConstancia(tempFilePath, TerminoBusqueda, esAprobatoria);
 
-                // 3. Abrir nuestra nueva ventana de visor con la ruta del archivo temporal
                 var viewer = new PdfViewerWindow(tempFilePath);
                 viewer.Show();
             }
@@ -147,13 +178,59 @@ namespace CertiScan.ViewModels
         {
             try
             {
-                PdfContent = _databaseService.GetDocumentoContent(docId);
+                string plainText = _databaseService.GetDocumentoContent(docId);
+                ContenidoDocumento = CreateHighlightedFlowDocument(plainText, TerminoBusqueda);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al cargar el contenido del documento: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                PdfContent = "Error al cargar el contenido del documento.";
+                MessageBox.Show($"Error al cargar el contenido: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
+        {
+            var flowDocument = new FlowDocument();
+            var paragraph = new Paragraph();
+
+            if (string.IsNullOrEmpty(text))
+            {
+                flowDocument.Blocks.Add(new Paragraph(new Run("El documento está vacío o no se pudo leer el contenido.")));
+                return flowDocument;
+            }
+
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                paragraph.Inlines.Add(new Run(text));
+                flowDocument.Blocks.Add(paragraph);
+                return flowDocument;
+            }
+
+            int currentIndex = 0;
+            int searchTermIndex;
+            while ((searchTermIndex = text.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
+            {
+                if (searchTermIndex > currentIndex)
+                {
+                    paragraph.Inlines.Add(new Run(text.Substring(currentIndex, searchTermIndex - currentIndex)));
+                }
+
+                var highlightedRun = new Run(text.Substring(searchTermIndex, searchTerm.Length))
+                {
+                    Background = Brushes.Yellow,
+                    FontWeight = FontWeights.Bold
+                };
+                paragraph.Inlines.Add(highlightedRun);
+
+                currentIndex = searchTermIndex + searchTerm.Length;
+            }
+
+            if (currentIndex < text.Length)
+            {
+                paragraph.Inlines.Add(new Run(text.Substring(currentIndex)));
+            }
+
+            flowDocument.Blocks.Add(paragraph);
+            return flowDocument;
         }
     }
 }

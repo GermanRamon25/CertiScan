@@ -99,14 +99,12 @@ namespace CertiScan.Services
             }
         }
 
-        // --- MÉTODO NUEVO AÑADIDO PARA EL REGISTRO ---
         public bool AddUser(string fullName, string username, string password)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
 
-                // 1. Primero, verificamos si el nombre de usuario ya existe
                 var checkUserQuery = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username";
                 using (var checkUserCommand = new SqlCommand(checkUserQuery, connection))
                 {
@@ -114,12 +112,10 @@ namespace CertiScan.Services
                     int userCount = (int)checkUserCommand.ExecuteScalar();
                     if (userCount > 0)
                     {
-                        // Si el usuario ya existe, lanzamos una excepción para notificarlo
                         throw new Exception("El nombre de usuario ya está en uso. Por favor, elige otro.");
                     }
                 }
 
-                // 2. Si no existe, procedemos a insertarlo
                 string passwordHash = PasswordHasher.ComputeSha256Hash(password);
                 var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, PasswordHash) VALUES (@FullName, @Username, @PasswordHash)";
                 using (var insertCommand = new SqlCommand(insertQuery, connection))
@@ -127,11 +123,38 @@ namespace CertiScan.Services
                     insertCommand.Parameters.AddWithValue("@FullName", fullName);
                     insertCommand.Parameters.AddWithValue("@Username", username);
                     insertCommand.Parameters.AddWithValue("@PasswordHash", passwordHash);
-
                     int rowsAffected = insertCommand.ExecuteNonQuery();
-                    return rowsAffected > 0; // Devuelve 'true' si la inserción fue exitosa
+                    return rowsAffected > 0;
                 }
             }
+        }
+
+        // --- MÉTODO NUEVO AÑADIDO PARA OBTENER TODOS LOS DOCUMENTOS ---
+        public List<Documento> GetAllDocuments()
+        {
+            var resultados = new List<Documento>();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                // Se ordenan por fecha de carga descendente para mostrar los más nuevos primero
+                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos ORDER BY FechaCarga DESC";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            resultados.Add(new Documento
+                            {
+                                Id = reader.GetInt32(0),
+                                NombreArchivo = reader.GetString(1),
+                                FechaCarga = reader.GetDateTime(2)
+                            });
+                        }
+                    }
+                }
+            }
+            return resultados;
         }
     }
 }
