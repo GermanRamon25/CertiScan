@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace CertiScan.Services
 {
@@ -13,30 +14,26 @@ namespace CertiScan.Services
         // --- ESTA ES TU CLAVE SECRETA ---
         // Puedes cambiarla por cualquier texto que quieras.
         // Esta es la clave que deberá contener el archivo "license.key".
-        private static readonly string SecretKey = "Notarias-CertiScan-LicenciaValida-2025";
+        private static readonly string SecretKey = "Notaria215-CertiScan-LicenciaValida-2025";
 
         public static bool ValidateLicense()
         {
+            // Ahora el programa sabe qué es "Path"
             string licenseFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LicenseFileName);
 
-            // 1. Verifica si el archivo "license.key" existe.
+            // Ahora el programa sabe qué es "File"
             if (!File.Exists(licenseFilePath))
             {
-                // Si no existe, la licencia es inválida.
                 return false;
             }
 
             try
             {
-                // 2. Lee el contenido del archivo.
                 string keyFromFile = File.ReadAllText(licenseFilePath).Trim();
-
-                // 3. Compara el contenido del archivo con tu clave secreta.
                 return keyFromFile == SecretKey;
             }
             catch
             {
-                // Si hay cualquier error al leer el archivo, la licencia es inválida.
                 return false;
             }
         }
