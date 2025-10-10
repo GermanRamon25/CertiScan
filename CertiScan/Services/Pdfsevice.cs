@@ -7,7 +7,7 @@ using QuestPDF.Drawing;
 using System.Text;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
-using System.Linq; // Necesario para la nueva función
+using System.Linq; // Necesario para la nueva lógica
 
 namespace CertiScan.Services
 {
@@ -18,6 +18,7 @@ namespace CertiScan.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
+        // --- MÉTODO ACTUALIZADO CON LÓGICA DE RECONSTRUCCIÓN DE LÍNEAS ---
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
             var textoProcesado = new StringBuilder();
@@ -25,38 +26,26 @@ namespace CertiScan.Services
             {
                 foreach (Page page in document.GetPages())
                 {
-                    textoProcesado.Append(page.Text);
-                    textoProcesado.Append(" ");
+                    // Agrupamos las palabras por su línea vertical (coordenada Y).
+                    // Esto nos permite reconstruir los renglones originales del PDF.
+                    var lines = page.GetWords()
+                                    .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 2))
+                                    .OrderByDescending(g => g.Key);
+
+                    foreach (var line in lines)
+                    {
+                        // Ordenamos las palabras de la línea de izquierda a derecha y las unimos.
+                        string lineText = string.Join(" ", line.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text));
+                        textoProcesado.AppendLine(lineText);
+                    }
+                    textoProcesado.AppendLine(); // Espacio entre páginas
                 }
             }
             return textoProcesado.ToString();
         }
 
-        // --- INICIO DE LA SECCIÓN MODIFICADA (FUNCIÓN NUEVA) ---
-        /// <summary>
-        /// Determina el prefijo de género (Sr. o Sra.) basado en el primer nombre.
-        /// </summary>
-        private string GetGenderPrefix(string fullName)
-        {
-            if (string.IsNullOrWhiteSpace(fullName))
-                return "Sr./Sra.";
-
-            // Tomamos la primera palabra del nombre completo.
-            string firstName = fullName.Split(' ').FirstOrDefault()?.ToLower() ?? "";
-
-            // Regla simple: si termina en 'a', es femenino. Puedes añadir más excepciones si quieres.
-            if (firstName.EndsWith("a"))
-            {
-                return "Sra.";
-            }
-
-            return "Sr.";
-        }
-        // --- FIN DE LA SECCIÓN MODIFICADA ---
-
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria)
         {
-            // Obtenemos el prefijo (Sr. o Sra.) antes de crear el documento.
             string genderPrefix = GetGenderPrefix(terminoBuscado);
 
             Document.Create(container =>
@@ -67,7 +56,6 @@ namespace CertiScan.Services
                     page.Margin(50);
                     page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Helvetica"));
 
-                    // El encabezado con los datos de la notaría se mantiene igual.
                     page.Header().Column(col =>
                     {
                         col.Item().Text("LIC. SERGIO AGUILASOCHO GARCÍA").Bold().FontSize(14);
@@ -77,7 +65,6 @@ namespace CertiScan.Services
                         col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                     });
 
-                    // El contenido principal ahora usa el nuevo formato.
                     page.Content().PaddingVertical(20).Column(col =>
                     {
                         col.Item().Text("UNIDAD DE INTELIGENCIA FINANCIERA").Bold().Underline();
@@ -89,12 +76,10 @@ namespace CertiScan.Services
                             text.Span("Con fundamento en lo dispuesto por el numeral 17, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que, con esta fecha, el personal de esta notaría a mi cargo realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
                         });
 
-                        // --- INICIO DE LA SECCIÓN MODIFICADA ---
-                        // Se aplica el formato con Sr./Sra. y todo en negritas.
                         col.Item().PaddingTop(25).Text(text =>
                         {
                             text.Span(genderPrefix).Bold();
-                            text.Span(" ").Bold(); // Espacio
+                            text.Span(" ").Bold();
                             text.Span(terminoBuscado).Bold();
                         });
 
@@ -112,15 +97,29 @@ namespace CertiScan.Services
                             }
                         });
 
-                        // Firma
                         col.Item().PaddingTop(80).AlignCenter().Text("Atentamente:");
                         col.Item().PaddingTop(40).AlignCenter().Text("_________________________");
                         col.Item().AlignCenter().Text("Lic. Sergio Aguilasocho García.");
-                        col.Item().AlignCenter().Text("Notario Público No. 215.");
+                        col.Item().AlignCenter().Text("Notario Público No. 215");
                     });
                 });
             })
             .GeneratePdf(rutaGuardado);
+        }
+
+        private string GetGenderPrefix(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+                return "Sr./Sra.";
+
+            string firstName = fullName.Split(' ').FirstOrDefault()?.ToLower() ?? "";
+
+            if (firstName.EndsWith("a"))
+            {
+                return "Sra.";
+            }
+
+            return "Sr.";
         }
     }
 }
