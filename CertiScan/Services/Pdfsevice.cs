@@ -7,6 +7,7 @@ using QuestPDF.Drawing;
 using System.Text;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
+using System.Linq; // Necesario para la nueva función
 
 namespace CertiScan.Services
 {
@@ -16,7 +17,6 @@ namespace CertiScan.Services
         {
             QuestPDF.Settings.License = LicenseType.Community;
         }
-
 
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
@@ -32,8 +32,33 @@ namespace CertiScan.Services
             return textoProcesado.ToString();
         }
 
+        // --- INICIO DE LA SECCIÓN MODIFICADA (FUNCIÓN NUEVA) ---
+        /// <summary>
+        /// Determina el prefijo de género (Sr. o Sra.) basado en el primer nombre.
+        /// </summary>
+        private string GetGenderPrefix(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+                return "Sr./Sra.";
+
+            // Tomamos la primera palabra del nombre completo.
+            string firstName = fullName.Split(' ').FirstOrDefault()?.ToLower() ?? "";
+
+            // Regla simple: si termina en 'a', es femenino. Puedes añadir más excepciones si quieres.
+            if (firstName.EndsWith("a"))
+            {
+                return "Sra.";
+            }
+
+            return "Sr.";
+        }
+        // --- FIN DE LA SECCIÓN MODIFICADA ---
+
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria)
         {
+            // Obtenemos el prefijo (Sr. o Sra.) antes de crear el documento.
+            string genderPrefix = GetGenderPrefix(terminoBuscado);
+
             Document.Create(container =>
             {
                 container.Page(page =>
@@ -64,11 +89,16 @@ namespace CertiScan.Services
                             text.Span("Con fundamento en lo dispuesto por el numeral 17, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que, con esta fecha, el personal de esta notaría a mi cargo realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
                         });
 
-                        // Se añade la primera línea por separado.
-                        col.Item().PaddingTop(25).Text($"El señor: {terminoBuscado}");
+                        // --- INICIO DE LA SECCIÓN MODIFICADA ---
+                        // Se aplica el formato con Sr./Sra. y todo en negritas.
+                        col.Item().PaddingTop(25).Text(text =>
+                        {
+                            text.Span(genderPrefix).Bold();
+                            text.Span(" ").Bold(); // Espacio
+                            text.Span(terminoBuscado).Bold();
+                        });
 
-                        // Se añade la segunda línea usando el descriptor de texto para poder aplicar formato.
-                        col.Item().Text(text =>
+                        col.Item().PaddingTop(15).Text(text =>
                         {
                             if (esAprobatoria)
                             {
@@ -86,11 +116,8 @@ namespace CertiScan.Services
                         col.Item().PaddingTop(80).AlignCenter().Text("Atentamente:");
                         col.Item().PaddingTop(40).AlignCenter().Text("_________________________");
                         col.Item().AlignCenter().Text("Lic. Sergio Aguilasocho García.");
-                        col.Item().AlignCenter().Text("Notario Público 215.");
+                        col.Item().AlignCenter().Text("Notario Público No. 215.");
                     });
-
-                    // --- SECCIÓN DE PIE DE PÁGINA ELIMINADA ---
-                    // Ya no se mostrará el número de página.
                 });
             })
             .GeneratePdf(rutaGuardado);
