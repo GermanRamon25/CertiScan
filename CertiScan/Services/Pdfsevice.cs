@@ -4,9 +4,9 @@ using QuestPDF.Infrastructure;
 using System;
 using System.IO;
 using QuestPDF.Drawing;
-using System.Text; // Necesario para StringBuilder
-using UglyToad.PdfPig; // Librería nueva para leer PDF
-using UglyToad.PdfPig.Content; // Librería nueva para leer PDF
+using System.Text;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 
 namespace CertiScan.Services
 {
@@ -17,45 +17,32 @@ namespace CertiScan.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
-        // --- MÉTODO ACTUALIZADO CON LA NUEVA LIBRERÍA PDFPIG ---
+
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
             var textoProcesado = new StringBuilder();
-
-            // Usamos PdfPig para abrir y leer el documento
             using (PdfDocument document = PdfDocument.Open(rutaArchivo))
             {
                 foreach (Page page in document.GetPages())
                 {
-                    // Obtenemos el texto de cada página y lo añadimos
                     textoProcesado.Append(page.Text);
-                    textoProcesado.Append(" "); // Añadimos un espacio entre páginas
+                    textoProcesado.Append(" ");
                 }
             }
             return textoProcesado.ToString();
         }
 
-        // (El método para generar constancias no cambia, sigue usando QuestPDF)
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria)
         {
-            string cuerpoDelMensaje;
-            if (esAprobatoria)
-            {
-                cuerpoDelMensaje = "Por medio de la presente, se hace constar que, tras realizar una búsqueda exhaustiva en la base de datos documental interna a la fecha y hora de emisión de este documento, NO SE ENCONTRARON coincidencias o registros asociados al nombre consultado. Esta búsqueda se realizó como parte de los procedimientos de debida diligencia para la prevención de operaciones con recursos de procedencia ilícita.";
-            }
-            else
-            {
-                cuerpoDelMensaje = "Por medio de la presente, se informa que, tras realizar una búsqueda en la base de datos documental interna a la fecha y hora de emisión de este documento, SE ENCONTRARON una o más posibles coincidencias o registros asociados al nombre consultado. Se recomienda aplicar un procedimiento de debida diligencia ampliada para confirmar la identidad del sujeto y determinar las acciones correspondientes, conforme a la normativa en materia de prevención de operaciones con recursos de procedencia ilícita.";
-            }
-
             Document.Create(container =>
             {
                 container.Page(page =>
                 {
-                    page.Size(PageSizes.Letter);
-                    page.Margin(30);
+                    page.Size(PageSizes.A4);
+                    page.Margin(50);
                     page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Helvetica"));
 
+                    // El encabezado con los datos de la notaría se mantiene igual.
                     page.Header().Column(col =>
                     {
                         col.Item().Text("LIC. SERGIO AGUILASOCHO GARCÍA").Bold().FontSize(14);
@@ -65,31 +52,45 @@ namespace CertiScan.Services
                         col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                     });
 
+                    // El contenido principal ahora usa el nuevo formato.
                     page.Content().PaddingVertical(20).Column(col =>
                     {
-                        col.Item().AlignRight().Text($"Fecha de Emisión: {DateTime.Now:dd/MM/yyyy HH:mm:ss}").FontSize(10);
-                        col.Item().PaddingTop(15).Text(text =>
-                        {
-                            text.Span("Término de Búsqueda: ").Bold();
-                            text.Span(terminoBuscado);
-                        });
+                        col.Item().Text("UNIDAD DE INTELIGENCIA FINANCIERA").Bold().Underline();
+                        col.Item().Text("PRESENTE:").Bold();
 
-                        col.Item().PaddingTop(20).Text(text =>
+                        col.Item().PaddingTop(25).Text(text =>
                         {
                             text.Justify();
-                            text.Span(cuerpoDelMensaje);
+                            text.Span("Con fundamento en lo dispuesto por el numeral 17, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que, con esta fecha, el personal de esta notaría a mi cargo realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
                         });
 
-                        col.Item().AlignCenter().PaddingTop(100).Text("_________________________\nFirma del Responsable de Cumplimiento");
+                        // Se añade la primera línea por separado.
+                        col.Item().PaddingTop(25).Text($"El señor: {terminoBuscado}");
+
+                        // Se añade la segunda línea usando el descriptor de texto para poder aplicar formato.
+                        col.Item().Text(text =>
+                        {
+                            if (esAprobatoria)
+                            {
+                                text.Span("NO").Bold();
+                                text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero, crimen organizado o financiamiento al terrorismo.");
+                            }
+                            else
+                            {
+                                text.Span("SI").Bold();
+                                text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero, crimen organizado o financiamiento al terrorismo.");
+                            }
+                        });
+
+                        // Firma
+                        col.Item().PaddingTop(80).AlignCenter().Text("Atentamente:");
+                        col.Item().PaddingTop(40).AlignCenter().Text("_________________________");
+                        col.Item().AlignCenter().Text("Lic. Sergio Aguilasocho García.");
+                        col.Item().AlignCenter().Text("Notario Público 215.");
                     });
 
-                    page.Footer()
-                        .AlignCenter()
-                        .Text(x =>
-                        {
-                            x.Span("Página ");
-                            x.CurrentPageNumber();
-                        });
+                    // --- SECCIÓN DE PIE DE PÁGINA ELIMINADA ---
+                    // Ya no se mostrará el número de página.
                 });
             })
             .GeneratePdf(rutaGuardado);

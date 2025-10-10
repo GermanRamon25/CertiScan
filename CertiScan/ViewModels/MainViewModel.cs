@@ -38,11 +38,17 @@ namespace CertiScan.ViewModels
             get => _selectedDocumento;
             set
             {
-                if (SetProperty(ref _selectedDocumento, value) && value != null)
+                if (SetProperty(ref _selectedDocumento, value))
                 {
-                    LoadPdfContent(value.Id);
+                    if (value != null)
+                    {
+                        LoadPdfContent(value.Id);
+                    }
+                    else
+                    {
+                        ContenidoDocumento = new FlowDocument();
+                    }
                 }
-                // Notificamos al comando de borrado que el estado ha cambiado.
                 DeletePdfCommand.NotifyCanExecuteChanged();
             }
         }
@@ -57,26 +63,22 @@ namespace CertiScan.ViewModels
         public IRelayCommand CargarPdfCommand { get; }
         public IRelayCommand BuscarCommand { get; }
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
-        public IRelayCommand DeletePdfCommand { get; } // --- NUEVO COMANDO ---
+        public IRelayCommand DeletePdfCommand { get; }
 
         public MainViewModel()
         {
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
-
             LoadAllDocuments();
-
             CargarPdfCommand = new RelayCommand(CargarPdf);
             BuscarCommand = new RelayCommand(Buscar);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
-            DeletePdfCommand = new RelayCommand(DeletePdf, CanDeletePdf); // --- INICIALIZACIÓN DEL NUEVO COMANDO ---
+            DeletePdfCommand = new RelayCommand(DeletePdf, CanDeletePdf);
         }
 
-        // --- MÉTODOS NUEVOS PARA ELIMINAR ---
         private bool CanDeletePdf()
         {
-            // Solo se puede borrar si hay un documento seleccionado.
             return SelectedDocumento != null;
         }
 
@@ -93,17 +95,14 @@ namespace CertiScan.ViewModels
             {
                 try
                 {
-                    // 1. Llama al servicio para borrarlo de la BD y obtener la ruta del archivo.
                     string filePath = _databaseService.DeleteDocument(SelectedDocumento.Id);
-
-                    // 2. Borra el archivo físico del disco.
                     if (File.Exists(filePath))
                     {
                         File.Delete(filePath);
                     }
-
-                    // 3. Quita el documento de la lista en la pantalla.
                     DocumentosMostrados.Remove(SelectedDocumento);
+
+                    ContenidoDocumento = new FlowDocument();
 
                     MessageBox.Show("Documento eliminado exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -113,7 +112,6 @@ namespace CertiScan.ViewModels
                 }
             }
         }
-        // --- FIN DE MÉTODOS NUEVOS ---
 
         private void LoadAllDocuments()
         {
@@ -244,7 +242,20 @@ namespace CertiScan.ViewModels
                 return flowDocument;
             }
 
-            text = System.Text.RegularExpressions.Regex.Replace(text, @" (\d+\.)", "\n$1");
+            // --- INICIO DE LA SECCIÓN MODIFICADA ---
+            // Lógica inteligente para formatear la lista
+            bool isNumberedList = System.Text.RegularExpressions.Regex.IsMatch(text, @" \d+\.");
+            if (isNumberedList)
+            {
+                // Si es una lista numerada, inserta saltos de línea antes de cada número.
+                text = System.Text.RegularExpressions.Regex.Replace(text, @" (\d+\.)", "\n$1");
+            }
+            else
+            {
+                // Si no asume que es una lista de nombres y busca el cambio de minúscula a mayúscula.
+                text = System.Text.RegularExpressions.Regex.Replace(text, @"([a-z]) ([A-Z])", "$1\n$2");
+            }
+            // --- FIN DE LA SECCIÓN MODIFICADA ---
 
             if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
             {
