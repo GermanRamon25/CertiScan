@@ -28,7 +28,7 @@ namespace CertiScan
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             string username = UsernameTextBox.Text;
-            string password = PasswordBox.Password;
+            string password = PasswordInput.Password;
 
             if (_databaseService.ValidateUser(username, password))
             {

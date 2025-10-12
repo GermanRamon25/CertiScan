@@ -7,7 +7,7 @@ namespace CertiScan.Services
 {
     public class DatabaseService
     {
-        private readonly string _connectionString = "Server=GERMAN25\\SQLEXPRESS;Database=CertiScanDB;Trusted_Connection=True;TrustServerCertificate=True;";
+        private readonly string _connectionString = "Server=ALONDRA\\SQLEXPRESS;Database=CertiScanDB;Trusted_Connection=True;TrustServerCertificate=True;";
 
         public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto)
         {
