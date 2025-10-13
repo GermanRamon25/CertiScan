@@ -1,17 +1,6 @@
 ﻿using CertiScan.Services;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace CertiScan
 {
@@ -31,11 +20,13 @@ namespace CertiScan
 
             string fullName = FullNameTextBox.Text;
             string username = UsernameTextBox.Text;
-            string password = PasswordBox.Password;
-            string confirmPassword = ConfirmPasswordBox.Password;
+            string password = PasswordInput.Password;
+            string confirmPassword = ConfirmPasswordInput.Password;
 
             // Validaciones básicas
-            if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            if (string.IsNullOrWhiteSpace(fullName) ||
+                string.IsNullOrWhiteSpace(username) ||
+                string.IsNullOrWhiteSpace(password))
             {
                 ErrorMessage.Text = "Todos los campos son obligatorios.";
                 return;
@@ -60,9 +51,17 @@ namespace CertiScan
             }
             catch (Exception ex)
             {
-                // Capturamos el error si el usuario ya existe
+                // Capturamos el error si el usuario ya existe u otro fallo
                 ErrorMessage.Text = ex.Message;
             }
+        }
+
+        // Método agregado para el botón "Volver al Login"
+        private void BackToLogin_Click(object sender, RoutedEventArgs e)
+        {
+            LoginWindow login = new LoginWindow();
+            login.Show();
+            this.Close();
         }
     }
 }
