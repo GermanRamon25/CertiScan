@@ -46,6 +46,9 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#0A0A0A"/>
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -140,6 +143,7 @@
 
             <TextBox Width="350" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}" 
                      Style="{StaticResource SearchTextBoxStyle}"/>
+
             <Button Content="Buscar" Width="100" Command="{Binding BuscarCommand}"
                     Style="{StaticResource MainActionButtonStyle}"/>
 
@@ -174,13 +178,15 @@
             <Button Content="Generar Constancia Aprobatoria" Width="220"
                     Command="{Binding GenerarConstanciaCommand}" 
                     CommandParameter="{StaticResource ValorTrue}"
-                    Style="{StaticResource MainActionButtonStyle}"/>
-
+                    Style="{StaticResource MainActionButtonStyle}"
+                    IsEnabled="{Binding IsAprobatoriaButtonEnabled}"/>
             <Button Content="Generar Constancia Denegada" Width="228"
                     Margin="20,0,0,0" 
                     Command="{Binding GenerarConstanciaCommand}" 
                     CommandParameter="{StaticResource ValorFalse}"
-                    Style="{StaticResource MainActionButtonStyle}" Height="45"/>
+                    Style="{StaticResource MainActionButtonStyle}" 
+                    Height="45"
+                    IsEnabled="{Binding IsDenegadaButtonEnabled}"/>
         </StackPanel>
     </Grid>
 </Window>
