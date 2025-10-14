@@ -259,7 +259,7 @@
                         Click="LoginButton_Click" 
                         IsDefault="True" 
                         Style="{StaticResource PrimaryButtonStyle}"
-                        Margin="0, 20, 0, 0"/>
+                        Margin="0, 20, 0, 0" Height="36"/>
 
 
                 <Button Content="¿Necesitas una cuenta? Regístrate aquí." 

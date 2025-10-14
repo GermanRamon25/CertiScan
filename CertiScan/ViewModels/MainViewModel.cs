@@ -231,10 +231,10 @@ namespace CertiScan.ViewModels
             }
         }
 
+
         private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
         {
             var flowDocument = new FlowDocument();
-            var paragraph = new Paragraph();
 
             if (string.IsNullOrEmpty(text))
             {
@@ -242,53 +242,51 @@ namespace CertiScan.ViewModels
                 return flowDocument;
             }
 
-            // --- INICIO DE LA SECCIÓN MODIFICADA ---
-            // Lógica inteligente para formatear la lista
-            bool isNumberedList = System.Text.RegularExpressions.Regex.IsMatch(text, @" \d+\.");
-            if (isNumberedList)
-            {
-                // Si es una lista numerada, inserta saltos de línea antes de cada número.
-                text = System.Text.RegularExpressions.Regex.Replace(text, @" (\d+\.)", "\n$1");
-            }
-            else
-            {
-                // Si no asume que es una lista de nombres y busca el cambio de minúscula a mayúscula.
-                text = System.Text.RegularExpressions.Regex.Replace(text, @"([a-z]) ([A-Z])", "$1\n$2");
-            }
-            // --- FIN DE LA SECCIÓN MODIFICADA ---
-
             if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
             {
-                paragraph.Inlines.Add(new Run(text));
-                flowDocument.Blocks.Add(paragraph);
+                flowDocument.Blocks.Add(new Paragraph(new Run(text)));
                 return flowDocument;
             }
 
-            int currentIndex = 0;
-            int searchTermIndex;
-            while ((searchTermIndex = text.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
+            // Dividir el texto en líneas para procesarlas individualmente (si el PDF Service ya hizo esto)
+            string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string line in lines)
             {
-                if (searchTermIndex > currentIndex)
+                var paragraph = new Paragraph();
+                string currentLine = line;
+                int currentIndex = 0;
+                int searchTermIndex;
+
+                while ((searchTermIndex = currentLine.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
                 {
-                    paragraph.Inlines.Add(new Run(text.Substring(currentIndex, searchTermIndex - currentIndex)));
+                    if (searchTermIndex > currentIndex)
+                    {
+                        // Texto normal antes del término
+                        paragraph.Inlines.Add(new Run(currentLine.Substring(currentIndex, searchTermIndex - currentIndex)));
+                    }
+
+                    // Resaltado de ALTO CONTRASTE (Negro/Carbón y Amarillo)
+                    var highlightedRun = new Run(currentLine.Substring(searchTermIndex, searchTerm.Length))
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                        Foreground = Brushes.Yellow,
+                        FontWeight = FontWeights.ExtraBold
+                    };
+                    paragraph.Inlines.Add(highlightedRun);
+
+                    currentIndex = searchTermIndex + searchTerm.Length;
                 }
 
-                var highlightedRun = new Run(text.Substring(searchTermIndex, searchTerm.Length))
+                if (currentIndex < currentLine.Length)
                 {
-                    Background = Brushes.Yellow,
-                    FontWeight = FontWeights.Bold
-                };
-                paragraph.Inlines.Add(highlightedRun);
+                    // Resto de la línea
+                    paragraph.Inlines.Add(new Run(currentLine.Substring(currentIndex)));
+                }
 
-                currentIndex = searchTermIndex + searchTerm.Length;
+                flowDocument.Blocks.Add(paragraph);
             }
 
-            if (currentIndex < text.Length)
-            {
-                paragraph.Inlines.Add(new Run(text.Substring(currentIndex)));
-            }
-
-            flowDocument.Blocks.Add(paragraph);
             return flowDocument;
         }
     }

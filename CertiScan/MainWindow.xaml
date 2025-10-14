@@ -176,11 +176,11 @@
                     CommandParameter="{StaticResource ValorTrue}"
                     Style="{StaticResource MainActionButtonStyle}"/>
 
-            <Button Content="Generar Constancia Denegada" Width="220"
+            <Button Content="Generar Constancia Denegada" Width="228"
                     Margin="20,0,0,0" 
                     Command="{Binding GenerarConstanciaCommand}" 
                     CommandParameter="{StaticResource ValorFalse}"
-                    Style="{StaticResource MainActionButtonStyle}"/>
+                    Style="{StaticResource MainActionButtonStyle}" Height="45"/>
         </StackPanel>
     </Grid>
 </Window>
