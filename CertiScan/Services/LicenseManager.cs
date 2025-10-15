@@ -9,12 +9,12 @@ namespace CertiScan.Services
 {
     public static class LicenseManager
     {
-        private static readonly string LicenseFileName = "license.key";
+        private static readonly string LicenseFileName = "M.Bcl.System.Data.SNI.dll";
 
         // --- ESTA ES TU CLAVE SECRETA ---
         // Puedes cambiarla por cualquier texto que quieras.
         // Esta es la clave que deberá contener el archivo "license.key".
-        private static readonly string SecretKey = "Notarias-CertiScan-LicenciaValida-2025";
+        private static readonly string SecretKey = "251B5A3C-4D2A-4F7E-9C8D-06A3B9E1F0C4";
 
         public static bool ValidateLicense()
         {
