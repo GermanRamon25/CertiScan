@@ -7,7 +7,7 @@ using QuestPDF.Drawing;
 using System.Text;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
-using System.Linq; // Necesario para la nueva lógica
+using System.Linq;
 
 namespace CertiScan.Services
 {
@@ -18,7 +18,6 @@ namespace CertiScan.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
-        // --- MÉTODO ACTUALIZADO CON LÓGICA DE RECONSTRUCCIÓN DE LÍNEAS ---
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
             var textoProcesado = new StringBuilder();
@@ -26,19 +25,16 @@ namespace CertiScan.Services
             {
                 foreach (Page page in document.GetPages())
                 {
-                    // Agrupamos las palabras por su línea vertical (coordenada Y).
-                    // Esto nos permite reconstruir los renglones originales del PDF.
                     var lines = page.GetWords()
                                     .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 2))
                                     .OrderByDescending(g => g.Key);
 
                     foreach (var line in lines)
                     {
-                        // Ordenamos las palabras de la línea de izquierda a derecha y las unimos.
                         string lineText = string.Join(" ", line.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text));
                         textoProcesado.AppendLine(lineText);
                     }
-                    textoProcesado.AppendLine(); // Espacio entre páginas
+                    textoProcesado.AppendLine();
                 }
             }
             return textoProcesado.ToString();
@@ -46,8 +42,6 @@ namespace CertiScan.Services
 
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria)
         {
-            string genderPrefix = GetGenderPrefix(terminoBuscado);
-
             Document.Create(container =>
             {
                 container.Page(page =>
@@ -73,15 +67,17 @@ namespace CertiScan.Services
                         col.Item().PaddingTop(25).Text(text =>
                         {
                             text.Justify();
-                            text.Span("Con fundamento en lo dispuesto por el numeral 17, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que, con esta fecha, el personal de esta notaría a mi cargo realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
+                            text.Span("Con fundamento en lo dispuesto por el numeral 17, fracción 12 apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, entratándose de actividades vulnerables realizadas ante notario público, hago constar que, con esta fecha, el personal de esta notaría a mi cargo realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
                         });
 
+                        // --- INICIO DE LA SECCIÓN MODIFICADA ---
+                        // Se utiliza el prefijo "SR.(A)" y se pone todo en negritas.
                         col.Item().PaddingTop(25).Text(text =>
                         {
-                            text.Span(genderPrefix).Bold();
-                            text.Span(" ").Bold();
+                            text.Span("SR.(A) ").Bold();
                             text.Span(terminoBuscado).Bold();
                         });
+                        // --- FIN DE LA SECCIÓN MODIFICADA ---
 
                         col.Item().PaddingTop(15).Text(text =>
                         {
@@ -107,19 +103,6 @@ namespace CertiScan.Services
             .GeneratePdf(rutaGuardado);
         }
 
-        private string GetGenderPrefix(string fullName)
-        {
-            if (string.IsNullOrWhiteSpace(fullName))
-                return "Sr./Sra.";
-
-            string firstName = fullName.Split(' ').FirstOrDefault()?.ToLower() ?? "";
-
-            if (firstName.EndsWith("a"))
-            {
-                return "Sra.";
-            }
-
-            return "Sr.";
-        }
+        // El método GetGenderPrefix ya no es necesario y ha sido eliminado.
     }
 }
