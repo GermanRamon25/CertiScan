@@ -52,16 +52,20 @@ namespace CertiScan.Services
             return resultados;
         }
 
-        public void RegistrarBusqueda(string terminoBuscado, bool resultadoEncontrado)
+        // --- MÉTODO MODIFICADO ---
+        public void RegistrarBusqueda(string terminoBuscado, bool resultadoEncontrado, int usuarioId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado) VALUES (@Termino, @Encontrado)";
+                // Se actualiza la consulta para incluir el UsuarioId
+                var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId) VALUES (@Termino, @Encontrado, @UsuarioId)";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Termino", terminoBuscado);
                     command.Parameters.AddWithValue("@Encontrado", resultadoEncontrado);
+                    // Se añade el nuevo parámetro para el ID del usuario
+                    command.Parameters.AddWithValue("@UsuarioId", usuarioId);
                     command.ExecuteNonQuery();
                 }
             }
@@ -97,6 +101,70 @@ namespace CertiScan.Services
                     return userCount > 0;
                 }
             }
+        }
+
+        // --- MÉTODO NUEVO AÑADIDO ---
+        public Usuario GetUserByUsername(string username)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = "SELECT Id, NombreCompleto, NombreUsuario FROM Usuarios WHERE NombreUsuario = @Username";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Username", username);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new Usuario
+                            {
+                                Id = reader.GetInt32(0),
+                                NombreCompleto = reader.GetString(1),
+                                NombreUsuario = reader.GetString(2)
+                            };
+                        }
+                    }
+                }
+            }
+            return null; // Usuario no encontrado
+        }
+
+        // --- MÉTODO NUEVO AÑADIDO ---
+        public List<BusquedaHistorial> GetSearchHistory()
+        {
+            var historial = new List<BusquedaHistorial>();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = @"
+                    SELECT
+                        u.NombreUsuario,
+                        b.TerminoBuscado,
+                        b.FechaBusqueda,
+                        b.ResultadoEncontrado
+                    FROM Busquedas b
+                    JOIN Usuarios u ON b.UsuarioId = u.Id
+                    ORDER BY b.FechaBusqueda DESC";
+
+                using (var command = new SqlCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            historial.Add(new BusquedaHistorial
+                            {
+                                NombreUsuario = reader.GetString(0),
+                                TerminoBuscado = reader.GetString(1),
+                                FechaBusqueda = reader.GetDateTime(2),
+                                ResultadoEncontrado = reader.GetBoolean(3)
+                            });
+                        }
+                    }
+                }
+            }
+            return historial;
         }
 
         public bool AddUser(string fullName, string username, string password)
@@ -155,7 +223,6 @@ namespace CertiScan.Services
             return resultados;
         }
 
-        // --- MÉTODO NUEVO AÑADIDO PARA ELIMINAR ---
         public string DeleteDocument(int documentId)
         {
             using (var connection = new SqlConnection(_connectionString))
@@ -163,7 +230,6 @@ namespace CertiScan.Services
                 connection.Open();
                 string filePath = null;
 
-                // 1. Primero, obtenemos la ruta física del archivo para poder borrarlo del disco.
                 var selectQuery = "SELECT RutaFisica FROM Documentos WHERE Id = @Id";
                 using (var selectCommand = new SqlCommand(selectQuery, connection))
                 {
@@ -177,11 +243,9 @@ namespace CertiScan.Services
 
                 if (filePath == null)
                 {
-                    // Si no se encuentra, lanzamos una excepción controlada.
                     throw new Exception("No se encontró el documento en la base de datos.");
                 }
 
-                // 2. Después, borramos el registro de la base de datos.
                 var deleteQuery = "DELETE FROM Documentos WHERE Id = @Id";
                 using (var deleteCommand = new SqlCommand(deleteQuery, connection))
                 {
@@ -189,7 +253,6 @@ namespace CertiScan.Services
                     deleteCommand.ExecuteNonQuery();
                 }
 
-                // Devolvemos la ruta del archivo para que el ViewModel lo borre del disco.
                 return filePath;
             }
         }

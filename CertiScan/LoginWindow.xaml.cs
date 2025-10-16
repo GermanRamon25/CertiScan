@@ -24,7 +24,6 @@ namespace CertiScan
             InitializeComponent();
             _databaseService = new DatabaseService();
         }
-        // Dentro de la clase public partial class LoginWindow : Window { ...
 
         // Método para sincronizar el texto del PasswordBox al TextBox (Mostrar)
         private void TogglePasswordCheckbox_Checked(object sender, RoutedEventArgs e)
@@ -57,6 +56,7 @@ namespace CertiScan
                 PasswordBox.Password = VisiblePasswordBox.Text;
             }
         }
+
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             string username = UsernameTextBox.Text;
@@ -64,6 +64,16 @@ namespace CertiScan
 
             if (_databaseService.ValidateUser(username, password))
             {
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // Se obtiene la información completa del usuario desde la base de datos.
+                var user = _databaseService.GetUserByUsername(username);
+                if (user != null)
+                {
+                    // Se guardan el ID y el nombre del usuario en el servicio de sesión.
+                    SessionService.Login(user.Id, user.NombreUsuario);
+                }
+                // --- FIN DE LA MODIFICACIÓN ---
+
                 MainWindow mainWindow = new MainWindow();
                 mainWindow.Show();
                 this.Close();

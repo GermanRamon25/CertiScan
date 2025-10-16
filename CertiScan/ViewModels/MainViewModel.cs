@@ -6,7 +6,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
-using CertiScan.Services;
+using CertiScan.Services; // Asegúrate de que este using esté presente
 using System;
 using System.IO;
 
@@ -30,7 +30,6 @@ namespace CertiScan.ViewModels
             }
         }
 
-        // PROPIEDADES DE ESTADO CLAVE
         private bool _resultadoEncontrado = false;
         public bool ResultadoEncontrado
         {
@@ -86,6 +85,7 @@ namespace CertiScan.ViewModels
         public IRelayCommand BuscarCommand { get; }
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
         public IRelayCommand DeletePdfCommand { get; }
+        public IRelayCommand ShowHistoryCommand { get; }
 
         public MainViewModel()
         {
@@ -97,8 +97,8 @@ namespace CertiScan.ViewModels
             BuscarCommand = new RelayCommand(Buscar);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
             DeletePdfCommand = new RelayCommand(DeletePdf, CanDeletePdf);
+            ShowHistoryCommand = new RelayCommand(ShowHistory);
 
-            // Establece el estado inicial: Aprobatoria habilitada.
             UpdateConstanciaButtonStates();
         }
 
@@ -180,7 +180,6 @@ namespace CertiScan.ViewModels
             }
         }
 
-        // MÉTODO CLAVE: Contiene la lógica para el resaltado y la habilitación
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda))
@@ -197,8 +196,8 @@ namespace CertiScan.ViewModels
                 var resultados = _databaseService.BuscarTermino(TerminoBusqueda);
                 bool encontrado = resultados.Count > 0;
 
-                ResultadoEncontrado = encontrado; // ASIGNACIÓN CLAVE
-                UpdateConstanciaButtonStates(); // LLAMADA CLAVE: Bloquea el botón incorrecto
+                ResultadoEncontrado = encontrado;
+                UpdateConstanciaButtonStates();
 
                 var resultadoIds = new HashSet<int>(resultados.Select(r => r.Id));
 
@@ -207,14 +206,15 @@ namespace CertiScan.ViewModels
                     docVm.IsSearchResult = resultadoIds.Contains(docVm.Id);
                 }
 
-                // FORZAR RECARGA DE CONTENIDO: Permite buscar y resaltar inmediatamente 
-                // en el mismo archivo sin hacer clic de nuevo.
                 if (SelectedDocumento != null)
                 {
                     LoadPdfContent(SelectedDocumento.Id);
                 }
 
-                _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado);
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // Se añade el tercer argumento necesario: el ID del usuario actual.
+                _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado, SessionService.CurrentUserId);
+                // --- FIN DE LA MODIFICACIÓN ---
 
                 if (encontrado)
                 {
@@ -231,20 +231,17 @@ namespace CertiScan.ViewModels
             }
         }
 
-        // MÉTODO CLAVE: Habilita/Deshabilita los botones
         private void UpdateConstanciaButtonStates()
         {
-            // Si la persona fue ENCONTRADA (lista negra), la ÚNICA opción válida es DENEGADA.
             if (ResultadoEncontrado)
             {
-                IsAprobatoriaButtonEnabled = false; // Deshabilitar Aprobatoria
-                IsDenegadaButtonEnabled = true;     // Habilitar Denegada
+                IsAprobatoriaButtonEnabled = false;
+                IsDenegadaButtonEnabled = true;
             }
-            // Si la persona NO fue ENCONTRADA, la ÚNICA opción válida es APROBATORIA.
             else
             {
-                IsAprobatoriaButtonEnabled = true;  // Habilitar Aprobatoria
-                IsDenegadaButtonEnabled = false;    // Deshabilitar Denegada
+                IsAprobatoriaButtonEnabled = true;
+                IsDenegadaButtonEnabled = false;
             }
         }
 
@@ -256,7 +253,6 @@ namespace CertiScan.ViewModels
             }
         }
 
-        // GenerarConstancia siempre forzará el resultado correcto basado en el estado.
         private void GenerarConstancia(bool ignoredParameter)
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda))
@@ -265,7 +261,6 @@ namespace CertiScan.ViewModels
                 return;
             }
 
-            // Forzamos el resultado: Si se encontró, la constancia NO es Aprobatoria. Si no, SÍ es Aprobatoria.
             bool generarAprobatoria = !ResultadoEncontrado;
 
             try
@@ -297,6 +292,12 @@ namespace CertiScan.ViewModels
             }
         }
 
+        private void ShowHistory()
+        {
+            var historyWindow = new HistoryWindow();
+            historyWindow.Show();
+        }
+
         private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
         {
             var flowDocument = new FlowDocument();
@@ -307,41 +308,38 @@ namespace CertiScan.ViewModels
                 return flowDocument;
             }
 
-            if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
-            {
-                string[] paragraphs = text.Split(new[] { "\n\n" }, StringSplitOptions.None);
-                foreach (string p in paragraphs)
-                {
-                    flowDocument.Blocks.Add(new Paragraph(new Run(p)));
-                }
-                return flowDocument;
-            }
+            string[] paragraphs = text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
 
-            // Dividir el texto en líneas para procesarlas individualmente.
-            string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
-
-            foreach (string line in lines)
+            foreach (string paraText in paragraphs)
             {
-                if (string.IsNullOrWhiteSpace(line))
+                var paragraph = new Paragraph
                 {
-                    flowDocument.Blocks.Add(new Paragraph(new Run("")));
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+
+                if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
+                {
+                    paragraph.Inlines.Add(new Run(paraText));
+                    flowDocument.Blocks.Add(paragraph);
                     continue;
                 }
 
-                var paragraph = new Paragraph();
-                string currentLine = line;
+                if (paraText.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    paragraph.Background = new SolidColorBrush(Color.FromRgb(255, 247, 225));
+                }
+
                 int currentIndex = 0;
                 int searchTermIndex;
 
-                while ((searchTermIndex = currentLine.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
+                while ((searchTermIndex = paraText.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
                 {
                     if (searchTermIndex > currentIndex)
                     {
-                        paragraph.Inlines.Add(new Run(currentLine.Substring(currentIndex, searchTermIndex - currentIndex)));
+                        paragraph.Inlines.Add(new Run(paraText.Substring(currentIndex, searchTermIndex - currentIndex)));
                     }
 
-                    // Resaltado de ALTO CONTRASTE 
-                    var highlightedRun = new Run(currentLine.Substring(searchTermIndex, searchTerm.Length))
+                    var highlightedRun = new Run(paraText.Substring(searchTermIndex, searchTerm.Length))
                     {
                         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
                         Foreground = Brushes.Yellow,
@@ -352,9 +350,9 @@ namespace CertiScan.ViewModels
                     currentIndex = searchTermIndex + searchTerm.Length;
                 }
 
-                if (currentIndex < currentLine.Length)
+                if (currentIndex < paraText.Length)
                 {
-                    paragraph.Inlines.Add(new Run(currentLine.Substring(currentIndex)));
+                    paragraph.Inlines.Add(new Run(paraText.Substring(currentIndex)));
                 }
 
                 flowDocument.Blocks.Add(paragraph);

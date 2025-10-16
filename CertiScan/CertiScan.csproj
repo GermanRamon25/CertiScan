@@ -286,10 +286,15 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="HistoryWindow.xaml.cs">
+      <DependentUpon>HistoryWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Models\BusquedaHistorial.cs" />
     <Compile Include="Models\DocumentoViewModel.cs" />
     <Compile Include="LoginWindow.xaml.cs">
       <DependentUpon>LoginWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Models\Usuario.cs" />
     <Compile Include="PdfViewerWindow.xaml.cs">
       <DependentUpon>PdfViewerWindow.xaml</DependentUpon>
     </Compile>
@@ -301,7 +306,13 @@
     <Compile Include="Services\LicenseManager.cs" />
     <Compile Include="Services\PasswordHasher.cs" />
     <Compile Include="Services\Pdfsevice.cs" />
+    <Compile Include="Services\SessionService.cs" />
+    <Compile Include="ViewModels\HistoryViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
+    <Page Include="HistoryWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="LoginWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
