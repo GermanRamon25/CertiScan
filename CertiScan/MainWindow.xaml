@@ -6,18 +6,45 @@
         xmlns:local="clr-namespace:CertiScan"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="CertiScan | Sistema de Búsqueda UIF" 
-        Height="650" Width="900" 
+        Title="CertiScan | Sistema de Búsqueda UIF"
+        Height="650" Width="1058"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
+        <Style x:Key="RefreshButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ToolTip" Value="Refrescar Vista"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="15">
+                            <Image Source="/CertiScan;component/Imagenes/refresh_icon.png" Stretch="Uniform"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <SolidColorBrush x:Key="PrimaryBlack" Color="#1E1E1E"/>
         <SolidColorBrush x:Key="SecondaryGray" Color="#4A4A4A"/>
         <SolidColorBrush x:Key="AccentLightGray" Color="#F0F0F0"/>
         <SolidColorBrush x:Key="ControlBackground" Color="White"/>
         <SolidColorBrush x:Key="BorderHighlight" Color="#CCCCCC"/>
         <SolidColorBrush x:Key="ErrorRed" Color="#C0392B"/>
-
         <sys:Boolean x:Key="ValorTrue">True</sys:Boolean>
         <sys:Boolean x:Key="ValorFalse">False</sys:Boolean>
 
@@ -34,7 +61,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="border" 
+                        <Border x:Name="border"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -66,7 +93,6 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-
         <Style x:Key="SearchTextBoxStyle" TargetType="{x:Type TextBox}">
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="Margin" Value="10,0"/>
@@ -98,7 +124,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
         <Style TargetType="{x:Type DataGrid}">
             <Setter Property="Background" Value="{StaticResource ControlBackground}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderHighlight}"/>
@@ -106,7 +131,6 @@
             <Setter Property="GridLinesVisibility" Value="None"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
         </Style>
-
         <Style TargetType="DataGridRow">
             <Setter Property="Background" Value="{StaticResource ControlBackground}"/>
             <Style.Triggers>
@@ -116,7 +140,6 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-
         <Style TargetType="{x:Type RichTextBox}">
             <Setter Property="BorderBrush" Value="{StaticResource BorderHighlight}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -137,31 +160,18 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+            <Button Content="Cargar PDF" Width="130" Command="{Binding CargarPdfCommand}" Style="{StaticResource MainActionButtonStyle}"/>
+            <TextBox Width="350" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}"/>
+            <Button Content="Buscar" Width="100" Command="{Binding BuscarCommand}" Style="{StaticResource MainActionButtonStyle}"/>
+            <Button Content="Eliminar PDF" Width="130" Margin="15,0,0,0" Command="{Binding DeletePdfCommand}" Style="{StaticResource DeleteButtonStyle}"/>
+            <Button Content="Ver Historial" Width="130" Margin="15,0,0,0" Command="{Binding ShowHistoryCommand}" Style="{StaticResource MainActionButtonStyle}"/>
 
-            <Button Content="Cargar PDF" Width="130" Command="{Binding CargarPdfCommand}" 
-                    Style="{StaticResource MainActionButtonStyle}"/>
-
-            <TextBox Width="350" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}" 
-                     Style="{StaticResource SearchTextBoxStyle}"/>
-
-            <Button Content="Buscar" Width="100" Command="{Binding BuscarCommand}"
-                    Style="{StaticResource MainActionButtonStyle}"/>
-
-            <Button Content="Eliminar PDF" Width="130" Margin="15,0,0,0" 
-                    Command="{Binding DeletePdfCommand}" 
-                    Style="{StaticResource DeleteButtonStyle}"/>
-
-            <Button Content="Ver Historial" Width="130" Margin="15,0,0,0" 
-                    Command="{Binding ShowHistoryCommand}"
-                    Style="{StaticResource MainActionButtonStyle}"/>
+            <Button Style="{StaticResource RefreshButtonStyle}"
+                    Margin="15,0,0,0"
+                    Command="{Binding RefreshCommand}" Height="36" Width="50"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1" 
-                  ItemsSource="{Binding DocumentosMostrados}"
-                  SelectedItem="{Binding SelectedDocumento}"
-                  AutoGenerateColumns="False" 
-                  IsReadOnly="True"
-                  SelectionMode="Single">
+        <DataGrid Grid.Row="1" ItemsSource="{Binding DocumentosMostrados}" SelectedItem="{Binding SelectedDocumento}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Nombre del Archivo" Binding="{Binding NombreArchivo}" Width="*"/>
                 <DataGridTextColumn Header="Fecha de Carga" Binding="{Binding FechaCarga, StringFormat='dd/MM/yyyy HH:mm'}" Width="Auto"/>
@@ -170,27 +180,12 @@
 
         <GridSplitter Grid.Row="2" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="{StaticResource SecondaryGray}"/>
 
-        <RichTextBox Grid.Row="3" 
-                     local:RichTextBoxHelper.Document="{Binding ContenidoDocumento}"
-                     IsReadOnly="True"
-                     VerticalScrollBarVisibility="Auto"
-                     Margin="0,8,0,0"
-                     Style="{StaticResource {x:Type RichTextBox}}"/>
+        <RichTextBox Grid.Row="3" local:RichTextBoxHelper.Document="{Binding ContenidoDocumento}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" Style="{StaticResource {x:Type RichTextBox}}"/>
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,20,0,0" HorizontalAlignment="Center">
-
-            <Button Content="Generar Constancia Aprobatoria" Width="220"
-                    Command="{Binding GenerarConstanciaCommand}" 
-                    CommandParameter="{StaticResource ValorTrue}"
-                    Style="{StaticResource MainActionButtonStyle}"
-                    IsEnabled="{Binding IsAprobatoriaButtonEnabled}"/>
-            <Button Content="Generar Constancia Denegada" Width="228"
-                    Margin="20,0,0,0" 
-                    Command="{Binding GenerarConstanciaCommand}" 
-                    CommandParameter="{StaticResource ValorFalse}"
-                    Style="{StaticResource MainActionButtonStyle}" 
-                    Height="45"
-                    IsEnabled="{Binding IsDenegadaButtonEnabled}"/>
+            <Button Content="Generar Constancia Aprobatoria" Width="220" Command="{Binding GenerarConstanciaCommand}" CommandParameter="{StaticResource ValorTrue}" Style="{StaticResource MainActionButtonStyle}" IsEnabled="{Binding IsAprobatoriaButtonEnabled}"/>
+            <Button Content="Generar Constancia Denegada" Width="228" Margin="20,0,0,0" Command="{Binding GenerarConstanciaCommand}" CommandParameter="{StaticResource ValorFalse}" Style="{StaticResource MainActionButtonStyle}" Height="45" IsEnabled="{Binding IsDenegadaButtonEnabled}"/>
         </StackPanel>
+
     </Grid>
 </Window>

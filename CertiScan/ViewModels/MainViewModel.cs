@@ -9,6 +9,7 @@ using System.Windows.Media;
 using CertiScan.Services; // Asegúrate de que este using esté presente
 using System;
 using System.IO;
+using System.Text.RegularExpressions; // Necesario para expresiones regulares
 
 namespace CertiScan.ViewModels
 {
@@ -23,9 +24,19 @@ namespace CertiScan.ViewModels
             get => _terminoBusqueda;
             set
             {
-                if (SetProperty(ref _terminoBusqueda, value) && string.IsNullOrWhiteSpace(value))
+                if (SetProperty(ref _terminoBusqueda, value))
                 {
-                    ClearSearchHighlights();
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        ClearSearchHighlights();
+                        if (SelectedDocumento != null)
+                            LoadPdfContent(SelectedDocumento.Id); // Recargar sin resaltado
+                    }
+                    // Si hay término y documento seleccionado, recargar con resaltado
+                    else if (SelectedDocumento != null)
+                    {
+                        LoadPdfContent(SelectedDocumento.Id);
+                    }
                 }
             }
         }
@@ -86,6 +97,7 @@ namespace CertiScan.ViewModels
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
         public IRelayCommand DeletePdfCommand { get; }
         public IRelayCommand ShowHistoryCommand { get; }
+        public IRelayCommand RefreshCommand { get; }
 
         public MainViewModel()
         {
@@ -98,6 +110,7 @@ namespace CertiScan.ViewModels
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
             DeletePdfCommand = new RelayCommand(DeletePdf, CanDeletePdf);
             ShowHistoryCommand = new RelayCommand(ShowHistory);
+            RefreshCommand = new RelayCommand(RefreshView);
 
             UpdateConstanciaButtonStates();
         }
@@ -126,8 +139,7 @@ namespace CertiScan.ViewModels
                         File.Delete(filePath);
                     }
                     DocumentosMostrados.Remove(SelectedDocumento);
-
-                    ContenidoDocumento = new FlowDocument();
+                    SelectedDocumento = null; // Limpiar selección
 
                     MessageBox.Show("Documento eliminado exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -171,7 +183,7 @@ namespace CertiScan.ViewModels
                     _databaseService.GuardarDocumento(nombreArchivo, rutaDestino, contenido);
                     MessageBox.Show("¡PDF cargado y procesado exitosamente!", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    LoadAllDocuments();
+                    RefreshView(); // Refrescar vista después de cargar
                 }
                 catch (Exception ex)
                 {
@@ -187,6 +199,8 @@ namespace CertiScan.ViewModels
                 ClearSearchHighlights();
                 ResultadoEncontrado = false;
                 UpdateConstanciaButtonStates();
+                if (SelectedDocumento != null)
+                    LoadPdfContent(SelectedDocumento.Id); // Recargar sin resaltado
                 MessageBox.Show("Por favor, ingrese un término de búsqueda.", "Advertencia", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -208,13 +222,10 @@ namespace CertiScan.ViewModels
 
                 if (SelectedDocumento != null)
                 {
-                    LoadPdfContent(SelectedDocumento.Id);
+                    LoadPdfContent(SelectedDocumento.Id); // Recargar CON resaltado
                 }
 
-                // --- INICIO DE LA MODIFICACIÓN ---
-                // Se añade el tercer argumento necesario: el ID del usuario actual.
                 _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado, SessionService.CurrentUserId);
-                // --- FIN DE LA MODIFICACIÓN ---
 
                 if (encontrado)
                 {
@@ -233,14 +244,16 @@ namespace CertiScan.ViewModels
 
         private void UpdateConstanciaButtonStates()
         {
+            bool canGenerate = !string.IsNullOrWhiteSpace(TerminoBusqueda);
+
             if (ResultadoEncontrado)
             {
                 IsAprobatoriaButtonEnabled = false;
-                IsDenegadaButtonEnabled = true;
+                IsDenegadaButtonEnabled = canGenerate;
             }
             else
             {
-                IsAprobatoriaButtonEnabled = true;
+                IsAprobatoriaButtonEnabled = canGenerate;
                 IsDenegadaButtonEnabled = false;
             }
         }
@@ -289,6 +302,7 @@ namespace CertiScan.ViewModels
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al cargar el contenido: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ContenidoDocumento = new FlowDocument();
             }
         }
 
@@ -298,6 +312,18 @@ namespace CertiScan.ViewModels
             historyWindow.Show();
         }
 
+        private void RefreshView()
+        {
+            TerminoBusqueda = string.Empty; // Dispara la lógica en el setter para quitar resaltados
+            SelectedDocumento = null;
+            ClearSearchHighlights();
+            LoadAllDocuments();
+            ResultadoEncontrado = false;
+            UpdateConstanciaButtonStates();
+            ContenidoDocumento = new FlowDocument();
+        }
+
+        // --- MÉTODO ACTUALIZADO ---
         private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
         {
             var flowDocument = new FlowDocument();
@@ -308,57 +334,177 @@ namespace CertiScan.ViewModels
                 return flowDocument;
             }
 
-            string[] paragraphs = text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            // Normalizar saltos de línea y reducir múltiples a dos máximo
+            text = text.Replace("\r\n", "\n").Replace("\r", "\n");
+            text = Regex.Replace(text, @"\n{3,}", "\n\n");
 
-            foreach (string paraText in paragraphs)
+            // Dividir en bloques principales (separados por doble salto de línea)
+            string[] blocks = text.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            bool applyHighlight = !string.IsNullOrWhiteSpace(searchTerm) && searchTerm.Length >= 2;
+
+            foreach (string blockText in blocks)
             {
-                var paragraph = new Paragraph
+                // Crear un párrafo para el bloque completo
+                var blockParagraph = new Paragraph
                 {
-                    Margin = new Thickness(0, 0, 0, 10)
+                    Margin = new Thickness(0, 0, 0, 15) // Espacio entre bloques
                 };
 
-                if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
+                // Resaltado de fondo para todo el bloque si contiene el término
+                bool blockContainsSearchTerm = applyHighlight && blockText.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (blockContainsSearchTerm)
                 {
-                    paragraph.Inlines.Add(new Run(paraText));
-                    flowDocument.Blocks.Add(paragraph);
-                    continue;
+                    blockParagraph.Background = new SolidColorBrush(Color.FromRgb(255, 247, 225)); // #FFF7E1
                 }
 
-                if (paraText.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0)
+                // Dividir el bloque en líneas individuales para aplicar formato específico
+                string[] lines = blockText.Split('\n');
+                for (int i = 0; i < lines.Length; i++)
                 {
-                    paragraph.Background = new SolidColorBrush(Color.FromRgb(255, 247, 225));
-                }
+                    string line = lines[i].Trim();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
 
-                int currentIndex = 0;
-                int searchTermIndex;
-
-                while ((searchTermIndex = paraText.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
-                {
-                    if (searchTermIndex > currentIndex)
+                    // Añadir salto de línea si no es la primera línea del bloque
+                    if (i > 0)
                     {
-                        paragraph.Inlines.Add(new Run(paraText.Substring(currentIndex, searchTermIndex - currentIndex)));
+                        blockParagraph.Inlines.Add(new LineBreak());
                     }
 
-                    var highlightedRun = new Run(paraText.Substring(searchTermIndex, searchTerm.Length))
+                    // --- Lógica de formato específico por línea ---
+                    bool isHandled = false; // Flag para saber si ya se aplicó un formato especial
+
+                    // Nombres principales
+                    if (line.StartsWith("'ABD AL-MALIK") || line.StartsWith("'ABD AL-RAHMAN"))
                     {
-                        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
-                        Foreground = Brushes.Yellow,
-                        FontWeight = FontWeights.ExtraBold
-                    };
-                    paragraph.Inlines.Add(highlightedRun);
+                        AddFormattedRun(blockParagraph, "NOMBRE: ", Brushes.Gray, FontWeights.Bold);
+                        AddHighlightedTextToParagraph(blockParagraph, line, searchTerm, FontWeights.Bold);
+                        isHandled = true;
+                    }
+                    // Alias principal
+                    else if (line.StartsWith("también conocido como"))
+                    {
+                        AddFormattedRun(blockParagraph, "Alias: ", Brushes.DarkGray, FontWeights.SemiBold);
+                        AddHighlightedTextToParagraph(blockParagraph, line.Substring("también conocido como".Length).Trim(), searchTerm);
+                        isHandled = true;
+                    }
+                    // Enlace Interpol
+                    else if (line.StartsWith("Liga de identificación Interpol:"))
+                    {
+                        AddFormattedRun(blockParagraph, "Enlace Interpol: ", Brushes.DarkGray, FontWeights.SemiBold);
+                        string url = line.Substring("Liga de identificación Interpol:".Length).Trim();
+                        if (!string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url, UriKind.Absolute, out Uri uriResult))
+                        {
+                            var hyperlink = new Hyperlink { NavigateUri = uriResult, Foreground = Brushes.Blue, TextDecorations = TextDecorations.Underline };
+                            hyperlink.RequestNavigate += (sender, e) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+                            foreach (var inline in CreateHighlightedRuns(url, searchTerm)) { hyperlink.Inlines.Add(inline); }
+                            blockParagraph.Inlines.Add(hyperlink);
+                        }
+                        else
+                        {
+                            // Si la URL está vacía o no es válida, mostrarla como texto normal
+                            AddHighlightedTextToParagraph(blockParagraph, url, searchTerm);
+                        }
+                        isHandled = true;
+                    }
+                    // Fechas de Nacimiento (heurística)
+                    else if (Regex.IsMatch(line, @"\d{1,2} de \w+ de \d{4}$|\d{4}$|^\w\)\s*\d{4}$"))
+                    {
+                        AddFormattedRun(blockParagraph, "Fecha Nacimiento: ", Brushes.DarkGray, FontWeights.SemiBold);
+                        AddHighlightedTextToParagraph(blockParagraph, line, searchTerm);
+                        isHandled = true;
+                    }
+                    // Alias secundarios (a), b), c)...) - Añadir indentación
+                    else if (Regex.IsMatch(line, @"^\s*[a-z]\)\s+"))
+                    {
+                        blockParagraph.Inlines.Add(new Run("    ")); // Indentación
+                        AddHighlightedTextToParagraph(blockParagraph, line.TrimStart(), searchTerm);
+                        isHandled = true;
+                    }
 
-                    currentIndex = searchTermIndex + searchTerm.Length;
+                    // Líneas genéricas (si no coincidió con ningún patrón especial)
+                    if (!isHandled)
+                    {
+                        // Poner en negrita las etiquetas comunes si aparecen solas en una línea
+                        if (line.Equals("NOMBRE", StringComparison.OrdinalIgnoreCase) ||
+                            line.Equals("FECHA DE NACIMIENTO", StringComparison.OrdinalIgnoreCase))
+                        {
+                            AddHighlightedTextToParagraph(blockParagraph, line, searchTerm, FontWeights.Bold, Brushes.Gray);
+                        }
+                        else
+                        {
+                            AddHighlightedTextToParagraph(blockParagraph, line, searchTerm);
+                        }
+                    }
                 }
-
-                if (currentIndex < paraText.Length)
-                {
-                    paragraph.Inlines.Add(new Run(paraText.Substring(currentIndex)));
-                }
-
-                flowDocument.Blocks.Add(paragraph);
+                flowDocument.Blocks.Add(blockParagraph);
             }
 
             return flowDocument;
+        }
+
+        // --- Métodos Helper (sin cambios respecto a la versión anterior) ---
+        private void AddFormattedRun(Paragraph paragraph, string text, Brush foreground, FontWeight fontWeight)
+        {
+            paragraph.Inlines.Add(new Run(text) { Foreground = foreground, FontWeight = fontWeight });
+        }
+        private void AddHighlightedTextToParagraph(Paragraph paragraph, string text, string searchTerm)
+        {
+            AddHighlightedTextToParagraph(paragraph, text, searchTerm, FontWeights.Normal, null);
+        }
+        private void AddHighlightedTextToParagraph(Paragraph paragraph, string text, string searchTerm, FontWeight defaultWeight)
+        {
+            AddHighlightedTextToParagraph(paragraph, text, searchTerm, defaultWeight, null);
+        }
+        private void AddHighlightedTextToParagraph(Paragraph paragraph, string text, string searchTerm, FontWeight defaultWeight, Brush defaultForeground)
+        {
+            foreach (var inline in CreateHighlightedRuns(text, searchTerm, defaultWeight, defaultForeground))
+            {
+                paragraph.Inlines.Add(inline);
+            }
+        }
+        private List<Inline> CreateHighlightedRuns(string text, string searchTerm)
+        {
+            return CreateHighlightedRuns(text, searchTerm, FontWeights.Normal, null);
+        }
+        private List<Inline> CreateHighlightedRuns(string text, string searchTerm, FontWeight defaultWeight)
+        {
+            return CreateHighlightedRuns(text, searchTerm, defaultWeight, null);
+        }
+        private List<Inline> CreateHighlightedRuns(string text, string searchTerm, FontWeight defaultWeight, Brush defaultForeground)
+        {
+            var inlines = new List<Inline>();
+            if (string.IsNullOrWhiteSpace(text)) return inlines;
+            bool applyWordHighlight = !string.IsNullOrWhiteSpace(searchTerm) && searchTerm.Length >= 2;
+
+            if (!applyWordHighlight)
+            {
+                inlines.Add(new Run(text) { FontWeight = defaultWeight, Foreground = defaultForeground ?? Brushes.Black });
+                return inlines;
+            }
+
+            int currentIndex = 0;
+            int searchTermIndex;
+            while ((searchTermIndex = text.IndexOf(searchTerm, currentIndex, StringComparison.OrdinalIgnoreCase)) != -1)
+            {
+                if (searchTermIndex > currentIndex)
+                {
+                    inlines.Add(new Run(text.Substring(currentIndex, searchTermIndex - currentIndex)) { FontWeight = defaultWeight, Foreground = defaultForeground ?? Brushes.Black });
+                }
+                var highlightedRun = new Run(text.Substring(searchTermIndex, searchTerm.Length))
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)), // Fondo oscuro
+                    Foreground = Brushes.Yellow,                                 // Texto amarillo
+                    FontWeight = FontWeights.ExtraBold                           // Negrita extra
+                };
+                inlines.Add(highlightedRun);
+                currentIndex = searchTermIndex + searchTerm.Length;
+            }
+            if (currentIndex < text.Length)
+            {
+                inlines.Add(new Run(text.Substring(currentIndex)) { FontWeight = defaultWeight, Foreground = defaultForeground ?? Brushes.Black });
+            }
+            return inlines;
         }
     }
 }
