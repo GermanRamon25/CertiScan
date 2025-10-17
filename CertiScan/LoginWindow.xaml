@@ -186,8 +186,8 @@
             <Border Grid.Column="0" Background="{StaticResource PrimaryBlack}" CornerRadius="15,0,0,15">
                 <StackPanel VerticalAlignment="Center" Margin="40">
 
-                    <Image Source="/CertiScan;component/Imagenes/logo.png" 
-                           Width="150" Height="150" 
+                    <Image Source="/CertiScan;component/Imagenes/LOGO_CERTISCAN.png" 
+                           Width="250" Height="250" 
                            Margin="0,0,0,20" 
                            HorizontalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
