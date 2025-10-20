@@ -91,5 +91,14 @@ namespace CertiScan
             RegistrationWindow registrationWindow = new RegistrationWindow();
             registrationWindow.ShowDialog(); // ShowDialog la abre de forma modal
         }
+
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // Método nuevo para el botón "Salir de la Aplicación"
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Cierra toda la aplicación
+            Application.Current.Shutdown();
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
     }
 }

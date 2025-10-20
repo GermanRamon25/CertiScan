@@ -6,10 +6,11 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
-using CertiScan.Services; // Asegúrate de que este using esté presente
+using CertiScan.Services;
 using System;
 using System.IO;
-using System.Text.RegularExpressions; // Necesario para expresiones regulares
+using System.Text.RegularExpressions;
+using System.Diagnostics; // <-- Añadido para los Hyperlinks
 
 namespace CertiScan.ViewModels
 {
@@ -17,6 +18,8 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
+
+        public string NombreUsuarioLogueado { get; }
 
         private string _terminoBusqueda = string.Empty;
         public string TerminoBusqueda
@@ -32,7 +35,6 @@ namespace CertiScan.ViewModels
                         if (SelectedDocumento != null)
                             LoadPdfContent(SelectedDocumento.Id); // Recargar sin resaltado
                     }
-                    // Si hay término y documento seleccionado, recargar con resaltado
                     else if (SelectedDocumento != null)
                     {
                         LoadPdfContent(SelectedDocumento.Id);
@@ -112,6 +114,8 @@ namespace CertiScan.ViewModels
             ShowHistoryCommand = new RelayCommand(ShowHistory);
             RefreshCommand = new RelayCommand(RefreshView);
 
+            NombreUsuarioLogueado = SessionService.CurrentUserName;
+
             UpdateConstanciaButtonStates();
         }
 
@@ -139,7 +143,7 @@ namespace CertiScan.ViewModels
                         File.Delete(filePath);
                     }
                     DocumentosMostrados.Remove(SelectedDocumento);
-                    SelectedDocumento = null; // Limpiar selección
+                    SelectedDocumento = null;
 
                     MessageBox.Show("Documento eliminado exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -183,7 +187,7 @@ namespace CertiScan.ViewModels
                     _databaseService.GuardarDocumento(nombreArchivo, rutaDestino, contenido);
                     MessageBox.Show("¡PDF cargado y procesado exitosamente!", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    RefreshView(); // Refrescar vista después de cargar
+                    RefreshView();
                 }
                 catch (Exception ex)
                 {
@@ -200,7 +204,7 @@ namespace CertiScan.ViewModels
                 ResultadoEncontrado = false;
                 UpdateConstanciaButtonStates();
                 if (SelectedDocumento != null)
-                    LoadPdfContent(SelectedDocumento.Id); // Recargar sin resaltado
+                    LoadPdfContent(SelectedDocumento.Id);
                 MessageBox.Show("Por favor, ingrese un término de búsqueda.", "Advertencia", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -222,7 +226,7 @@ namespace CertiScan.ViewModels
 
                 if (SelectedDocumento != null)
                 {
-                    LoadPdfContent(SelectedDocumento.Id); // Recargar CON resaltado
+                    LoadPdfContent(SelectedDocumento.Id);
                 }
 
                 _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado, SessionService.CurrentUserId);
@@ -314,7 +318,7 @@ namespace CertiScan.ViewModels
 
         private void RefreshView()
         {
-            TerminoBusqueda = string.Empty; // Dispara la lógica en el setter para quitar resaltados
+            TerminoBusqueda = string.Empty;
             SelectedDocumento = null;
             ClearSearchHighlights();
             LoadAllDocuments();
@@ -323,7 +327,6 @@ namespace CertiScan.ViewModels
             ContenidoDocumento = new FlowDocument();
         }
 
-        // --- MÉTODO ACTUALIZADO ---
         private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
         {
             var flowDocument = new FlowDocument();
@@ -334,88 +337,96 @@ namespace CertiScan.ViewModels
                 return flowDocument;
             }
 
-            // Normalizar saltos de línea y reducir múltiples a dos máximo
             text = text.Replace("\r\n", "\n").Replace("\r", "\n");
             text = Regex.Replace(text, @"\n{3,}", "\n\n");
 
-            // Dividir en bloques principales (separados por doble salto de línea)
             string[] blocks = text.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
 
             bool applyHighlight = !string.IsNullOrWhiteSpace(searchTerm) && searchTerm.Length >= 2;
 
+            var dateRegex = new Regex(@"(Fecha de Nacimiento:|Nacimiento:)\s*(?!http|www)(.*)", RegexOptions.IgnoreCase);
+
             foreach (string blockText in blocks)
             {
-                // Crear un párrafo para el bloque completo
                 var blockParagraph = new Paragraph
                 {
-                    Margin = new Thickness(0, 0, 0, 15) // Espacio entre bloques
+                    Margin = new Thickness(0, 0, 0, 15)
                 };
 
-                // Resaltado de fondo para todo el bloque si contiene el término
                 bool blockContainsSearchTerm = applyHighlight && blockText.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0;
                 if (blockContainsSearchTerm)
                 {
                     blockParagraph.Background = new SolidColorBrush(Color.FromRgb(255, 247, 225)); // #FFF7E1
                 }
 
-                // Dividir el bloque en líneas individuales para aplicar formato específico
                 string[] lines = blockText.Split('\n');
                 for (int i = 0; i < lines.Length; i++)
                 {
                     string line = lines[i].Trim();
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
-                    // Añadir salto de línea si no es la primera línea del bloque
                     if (i > 0)
                     {
                         blockParagraph.Inlines.Add(new LineBreak());
                     }
 
-                    // --- Lógica de formato específico por línea ---
-                    bool isHandled = false; // Flag para saber si ya se aplicó un formato especial
+                    bool isHandled = false;
 
-                    // Nombres principales
-                    if (line.StartsWith("'ABD AL-MALIK") || line.StartsWith("'ABD AL-RAHMAN"))
-                    {
-                        AddFormattedRun(blockParagraph, "NOMBRE: ", Brushes.Gray, FontWeights.Bold);
-                        AddHighlightedTextToParagraph(blockParagraph, line, searchTerm, FontWeights.Bold);
-                        isHandled = true;
-                    }
-                    // Alias principal
-                    else if (line.StartsWith("también conocido como"))
-                    {
-                        AddFormattedRun(blockParagraph, "Alias: ", Brushes.DarkGray, FontWeights.SemiBold);
-                        AddHighlightedTextToParagraph(blockParagraph, line.Substring("también conocido como".Length).Trim(), searchTerm);
-                        isHandled = true;
-                    }
-                    // Enlace Interpol
-                    else if (line.StartsWith("Liga de identificación Interpol:"))
+                    // PRIORIDAD 1: Buscar si es un enlace de Interpol.
+                    if (line.StartsWith("Liga de identificación Interpol:", StringComparison.OrdinalIgnoreCase))
                     {
                         AddFormattedRun(blockParagraph, "Enlace Interpol: ", Brushes.DarkGray, FontWeights.SemiBold);
                         string url = line.Substring("Liga de identificación Interpol:".Length).Trim();
                         if (!string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url, UriKind.Absolute, out Uri uriResult))
                         {
                             var hyperlink = new Hyperlink { NavigateUri = uriResult, Foreground = Brushes.Blue, TextDecorations = TextDecorations.Underline };
-                            hyperlink.RequestNavigate += (sender, e) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+                            hyperlink.RequestNavigate += (sender, e) => Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
                             foreach (var inline in CreateHighlightedRuns(url, searchTerm)) { hyperlink.Inlines.Add(inline); }
                             blockParagraph.Inlines.Add(hyperlink);
                         }
                         else
                         {
-                            // Si la URL está vacía o no es válida, mostrarla como texto normal
                             AddHighlightedTextToParagraph(blockParagraph, url, searchTerm);
                         }
                         isHandled = true;
                     }
-                    // Fechas de Nacimiento (heurística)
-                    else if (Regex.IsMatch(line, @"\d{1,2} de \w+ de \d{4}$|\d{4}$|^\w\)\s*\d{4}$"))
+
+                    // PRIORIDAD 2: Si NO es un enlace, buscar si es un nombre principal.
+                    else if (line.StartsWith("'ABD AL-MALIK") || line.StartsWith("'ABD AL-RAHMAN"))
                     {
-                        AddFormattedRun(blockParagraph, "Fecha Nacimiento: ", Brushes.DarkGray, FontWeights.SemiBold);
-                        AddHighlightedTextToParagraph(blockParagraph, line, searchTerm);
+                        AddFormattedRun(blockParagraph, "NOMBRE: ", Brushes.Gray, FontWeights.Bold);
+                        AddHighlightedTextToParagraph(blockParagraph, line, searchTerm, FontWeights.Bold);
                         isHandled = true;
                     }
-                    // Alias secundarios (a), b), c)...) - Añadir indentación
-                    else if (Regex.IsMatch(line, @"^\s*[a-z]\)\s+"))
+
+                    // PRIORIDAD 3: Si NO es un enlace ni nombre, buscar si es un alias.
+                    else if (line.StartsWith("también conocido como", StringComparison.OrdinalIgnoreCase))
+                    {
+                        AddFormattedRun(blockParagraph, "Alias: ", Brushes.DarkGray, FontWeights.SemiBold);
+                        AddHighlightedTextToParagraph(blockParagraph, line.Substring("también conocido como".Length).Trim(), searchTerm);
+                        isHandled = true;
+                    }
+
+                    // PRIORIDAD 4: Si NO es nada de lo anterior, buscar si es una Fecha de Nacimiento (que NO sea URL).
+                    else
+                    {
+                        var dateMatch = dateRegex.Match(line);
+                        if (dateMatch.Success)
+                        {
+                            string prefix = dateMatch.Groups[1].Value;
+                            string dateText = dateMatch.Groups[2].Value.Trim();
+
+                            if (!string.IsNullOrWhiteSpace(dateText))
+                            {
+                                AddFormattedRun(blockParagraph, prefix.Trim() + ": ", Brushes.DarkGray, FontWeights.SemiBold);
+                                AddHighlightedTextToParagraph(blockParagraph, dateText, searchTerm, FontWeights.Bold, Brushes.Black);
+                                isHandled = true;
+                            }
+                        }
+                    }
+
+                    // PRIORIDAD 5: Alias secundarios.
+                    if (!isHandled && Regex.IsMatch(line, @"^\s*[a-z]\)\s+"))
                     {
                         blockParagraph.Inlines.Add(new Run("    ")); // Indentación
                         AddHighlightedTextToParagraph(blockParagraph, line.TrimStart(), searchTerm);
@@ -425,7 +436,6 @@ namespace CertiScan.ViewModels
                     // Líneas genéricas (si no coincidió con ningún patrón especial)
                     if (!isHandled)
                     {
-                        // Poner en negrita las etiquetas comunes si aparecen solas en una línea
                         if (line.Equals("NOMBRE", StringComparison.OrdinalIgnoreCase) ||
                             line.Equals("FECHA DE NACIMIENTO", StringComparison.OrdinalIgnoreCase))
                         {
@@ -443,7 +453,6 @@ namespace CertiScan.ViewModels
             return flowDocument;
         }
 
-        // --- Métodos Helper (sin cambios respecto a la versión anterior) ---
         private void AddFormattedRun(Paragraph paragraph, string text, Brush foreground, FontWeight fontWeight)
         {
             paragraph.Inlines.Add(new Run(text) { Foreground = foreground, FontWeight = fontWeight });
@@ -493,11 +502,13 @@ namespace CertiScan.ViewModels
                 }
                 var highlightedRun = new Run(text.Substring(searchTermIndex, searchTerm.Length))
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)), // Fondo oscuro
-                    Foreground = Brushes.Yellow,                                 // Texto amarillo
-                    FontWeight = FontWeights.ExtraBold                           // Negrita extra
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                    Foreground = Brushes.Yellow,
+                    FontWeight = FontWeights.ExtraBold
                 };
-                inlines.Add(highlightedRun);
+                // --- INICIO DE LA CORRECCIÓN ---
+                inlines.Add(highlightedRun); // Era highlightRun
+                // --- FIN DE LA CORRECCIÓN ---
                 currentIndex = searchTermIndex + searchTerm.Length;
             }
             if (currentIndex < text.Length)

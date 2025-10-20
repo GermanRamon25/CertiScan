@@ -13,21 +13,18 @@ namespace CertiScan.ViewModels
     public class HistoryViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
-        private readonly PdfService _pdfService; // Se añade el servicio de PDF
+        private readonly PdfService _pdfService;
 
         public ObservableCollection<BusquedaHistorial> Historial { get; set; }
 
-        // --- INICIO DE LA MODIFICACIÓN ---
         public IRelayCommand<BusquedaHistorial> RegenerateCertificateCommand { get; }
-        // --- FIN DE LA MODIFICACIÓN ---
 
         public HistoryViewModel()
         {
             _databaseService = new DatabaseService();
-            _pdfService = new PdfService(); // Se inicializa el servicio de PDF
+            _pdfService = new PdfService();
             Historial = new ObservableCollection<BusquedaHistorial>();
 
-            // Se inicializa el nuevo comando
             RegenerateCertificateCommand = new RelayCommand<BusquedaHistorial>(RegenerateCertificate);
 
             LoadHistory();
@@ -43,25 +40,22 @@ namespace CertiScan.ViewModels
             }
         }
 
+
         // --- INICIO DE LA MODIFICACIÓN ---
-        // Nuevo método que se ejecuta al presionar el botón
         private void RegenerateCertificate(BusquedaHistorial historyItem)
         {
             if (historyItem == null) return;
 
             try
             {
-                // Se reutiliza la lógica de MainViewModel para generar la constancia
                 string tempFileName = $"Constancia_{historyItem.TerminoBuscado.Replace(" ", "_")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
                 string tempFilePath = Path.Combine(Path.GetTempPath(), tempFileName);
 
-                // Determina si la constancia es aprobatoria basándose en el resultado guardado
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
 
-                // Genera el PDF
-                _pdfService.GenerarConstancia(tempFilePath, historyItem.TerminoBuscado, esAprobatoria);
+                // AHORA LLAMAMOS AL MÉTODO CON 4 PARÁMETROS, INCLUYENDO LA FECHA ORIGINAL
+                _pdfService.GenerarConstancia(tempFilePath, historyItem.TerminoBuscado, esAprobatoria, historyItem.FechaBusqueda);
 
-                // Muestra el visor de PDF
                 var viewer = new PdfViewerWindow(tempFilePath);
                 viewer.Show();
             }

@@ -48,6 +48,46 @@
         <sys:Boolean x:Key="ValorTrue">True</sys:Boolean>
         <sys:Boolean x:Key="ValorFalse">False</sys:Boolean>
 
+        <Style x:Key="UserMenuToggleStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBlack}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border Background="{TemplateBinding Background}" Padding="8,5" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E0E0E0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PopupBorderStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#AAAAAA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="3" BlurRadius="10" Color="#88000000" Opacity="0.3"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="MainActionButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Background" Value="{StaticResource PrimaryBlack}"/>
             <Setter Property="Foreground" Value="{StaticResource ControlBackground}"/>
@@ -159,18 +199,60 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
-            <Button Content="Cargar PDF" Width="130" Command="{Binding CargarPdfCommand}" Style="{StaticResource MainActionButtonStyle}"/>
-            <TextBox Width="350" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}"/>
-            <Button Content="Buscar" Width="100" Command="{Binding BuscarCommand}" Style="{StaticResource MainActionButtonStyle}"/>
-            <Button Content="Eliminar PDF" Width="130" Margin="15,0,0,0" Command="{Binding DeletePdfCommand}" Style="{StaticResource DeleteButtonStyle}"/>
-            <Button Content="Ver Historial" Width="130" Margin="15,0,0,0" Command="{Binding ShowHistoryCommand}" Style="{StaticResource MainActionButtonStyle}"/>
+        <Grid Grid.Row="0" Margin="0,0,0,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-            <Button Style="{StaticResource RefreshButtonStyle}"
-                    Margin="15,0,0,0"
-                    Command="{Binding RefreshCommand}" Height="36" Width="50"/>
-        </StackPanel>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <Button Content="Cargar PDF" Width="130" Command="{Binding CargarPdfCommand}" Style="{StaticResource MainActionButtonStyle}"/>
+                <TextBox Width="350" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}"/>
+                <Button Content="Buscar" Width="100" Command="{Binding BuscarCommand}" Style="{StaticResource MainActionButtonStyle}"/>
+                <Button Content="Eliminar PDF" Width="130" Margin="15,0,0,0" Command="{Binding DeletePdfCommand}" Style="{StaticResource DeleteButtonStyle}"/>
+                <Button Content="Ver Historial" Width="130" Margin="15,0,0,0" Command="{Binding ShowHistoryCommand}" Style="{StaticResource MainActionButtonStyle}"/>
 
+                <Button Style="{StaticResource RefreshButtonStyle}"
+                        Margin="15,0,0,0"
+                        Command="{Binding RefreshCommand}" Height="36" Width="50"/>
+            </StackPanel>
+
+            <Grid Grid.Column="1" VerticalAlignment="Top">
+
+                <ToggleButton x:Name="UserMenuButton" Style="{StaticResource UserMenuToggleStyle}">
+                    <StackPanel Orientation="Horizontal" RenderTransformOrigin="0.548,0.593">
+                        <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding NombreUsuarioLogueado}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </ToggleButton>
+
+                <Popup x:Name="UserPopup"
+                       IsOpen="{Binding IsChecked, ElementName=UserMenuButton}"
+                       StaysOpen="False"
+                       Placement="Bottom"
+                       PlacementTarget="{Binding ElementName=UserMenuButton}"
+                       AllowsTransparency="True"
+                       PopupAnimation="Fade"
+                       Margin="0,5,0,0">
+
+                    <Border Style="{StaticResource PopupBorderStyle}">
+                        <StackPanel Width="200">
+                            <TextBlock Text="Nombre:" Foreground="{StaticResource SecondaryGray}" FontSize="12"/>
+
+                            <TextBlock Text="{Binding NombreUsuarioLogueado}"
+                                       Foreground="Black"
+                                       FontWeight="Bold"
+                                       FontSize="16"
+                                       Margin="0,0,0,15"/>
+
+                            <Button Content="Salir"
+                                    Style="{StaticResource MainActionButtonStyle}"
+                                    Click="LogoutButton_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+            </Grid>
+        </Grid>
         <DataGrid Grid.Row="1" ItemsSource="{Binding DocumentosMostrados}" SelectedItem="{Binding SelectedDocumento}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Nombre del Archivo" Binding="{Binding NombreArchivo}" Width="*"/>
