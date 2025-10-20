@@ -242,16 +242,6 @@
                            HorizontalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
 
-                    <TextBlock Text="CertiScan" 
-                               Foreground="{StaticResource TextLight}"
-               
-                               FontSize="40" 
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                     
-                               FontWeight="Bold" 
-                               Margin="0,0,0,5"/>
-
                     <TextBlock Text="NOTARÍA PÚBLICA No. 215" 
                                Foreground="{StaticResource SecondaryGray}"
  

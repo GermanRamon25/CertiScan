@@ -373,6 +373,9 @@
     <Resource Include="Imagenes\refresh_icon.png" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="LOGO_CERTISCAN.png" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Imagenes\LOGO_CERTISCAN.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
