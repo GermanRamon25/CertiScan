@@ -2,12 +2,13 @@
 using System;
 using System.Collections.Generic;
 using CertiScan.Models;
+using System.Configuration;
 
 namespace CertiScan.Services
 {
     public class DatabaseService
     {
-        private readonly string _connectionString = "Server=GERMAN25\\SQLEXPRESS;Database=CertiScanDB;Trusted_Connection=True;TrustServerCertificate=True;";
+        private readonly string _connectionString = ConfigurationManager.ConnectionStrings["CertiScanDBConnection"].ConnectionString;
 
         public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto)
         {
