@@ -377,9 +377,9 @@
     <Resource Include="LOGO_CERTISCAN.png" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Imagenes\LOGO_CERTISCAN.png">
+    <Resource Include="Imagenes\LOGO_CERTISCAN.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    </Resource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets" Condition="Exists('..\packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets')" />
