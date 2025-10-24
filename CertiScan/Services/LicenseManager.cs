@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Reflection; // <-- LÍNEA YA AGREGADA (Como la pediste)
 
 namespace CertiScan.Services
 {
@@ -18,8 +19,12 @@ namespace CertiScan.Services
 
         public static bool ValidateLicense()
         {
-            // Ahora el programa sabe qué es "Path"
-            string licenseFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LicenseFileName);
+            // ===== INICIO DE LA MODIFICACIÓN =====
+            // Obtiene la ruta de donde se está ejecutando el programa (más seguro para ClickOnce)
+            string assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            string assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
+            string licenseFilePath = Path.Combine(assemblyDirectory, LicenseFileName);
+            // ===== FIN DE LA MODIFICACIÓN =====
 
             // Ahora el programa sabe qué es "File"
             if (!File.Exists(licenseFilePath))
@@ -29,7 +34,8 @@ namespace CertiScan.Services
 
             try
             {
-                string keyFromFile = File.ReadAllText(licenseFilePath).Trim();
+                // Leer el archivo con la codificación correcta (ANSI)
+                string keyFromFile = File.ReadAllText(licenseFilePath, Encoding.Default).Trim();
                 return keyFromFile == SecretKey;
             }
             catch
