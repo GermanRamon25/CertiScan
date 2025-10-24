@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Windows;
+using Microsoft.Web.WebView2.Core; // Se mantiene, necesario para CoreWebView2NavigationCompletedEventArgs
 
 namespace CertiScan
 {
@@ -13,11 +14,38 @@ namespace CertiScan
         {
             InitializeComponent();
             _tempPdfPath = pdfPath;
-            // Asegurarse que el WebView2 esté listo antes de cargar el PDF
-            webView.NavigationCompleted += WebView_NavigationCompleted;
-            // Inicializa y carga el archivo
-            webView.Source = new Uri(pdfPath);
+
+            // Llama al nuevo método asíncrono para inicializar WebView2 de forma segura
+            InitializeWebView(pdfPath);
         }
+
+        // --- MÉTODO NUEVO: Inicialización Asíncrona para compatibilidad con Windows 8.1 ---
+        private async void InitializeWebView(string pdfPath)
+        {
+            try
+            {
+                // 1. Asegurarse que el WebView2 esté inicializado antes de usarlo
+                await webView.EnsureCoreWebView2Async(null);
+
+                // 2. Mover la lógica de carga aquí
+                webView.NavigationCompleted += WebView_NavigationCompleted;
+                webView.Source = new Uri(pdfPath);
+            }
+            catch (Exception ex)
+            {
+                // Capturar errores de inicialización (comunes en Win 8.1 sin el Runtime o si hay fallas de dependencia)
+                MessageBox.Show(
+                    $"Error crítico al inicializar el visor de PDF (WebView2).\n" +
+                    $"Asegúrese de tener instalado el Microsoft Edge WebView2 Runtime y las librerías C++.\n\n" +
+                    $"Detalle: {ex.Message}",
+                    "Error de Compatibilidad",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+                this.Close(); // Cerrar la ventana si el visor no puede funcionar
+            }
+        }
+        // --- FIN DEL MÉTODO NUEVO ---
 
         private async void PrintButton_Click(object sender, RoutedEventArgs e)
         {
