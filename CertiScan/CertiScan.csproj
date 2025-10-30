@@ -354,7 +354,7 @@
     <Compile Include="Models\RichTextBoxHelper.cs" />
     <Compile Include="Services\DataService.cs" />
     <Compile Include="Services\LicenseManager.cs" />
-    <Compile Include="Services\PasswordHasher.cs" />
+    
     <Compile Include="Services\Pdfsevice.cs"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Compile>
     <Compile Include="Services\SessionService.cs" />
     <Compile Include="ViewModels\HistoryViewModel.cs" />

@@ -87,17 +87,23 @@ namespace CertiScan.Services
             }
         }
 
+        // --- ¡MODIFICADO! ---
+        // Se quitó el PasswordHasher
         public bool ValidateUser(string username, string password)
         {
-            string passwordHash = PasswordHasher.ComputeSha256Hash(password);
+            // Ya no se calcula el HASH
+            // string passwordHash = PasswordHasher.ComputeSha256Hash(password); 
+
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username AND PasswordHash = @PasswordHash";
+                // Se compara directamente con la columna "Password"
+                var query = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username AND Password = @Password";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Username", username);
-                    command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                    // Se pasa la contraseña en texto plano
+                    command.Parameters.AddWithValue("@Password", password);
                     int userCount = (int)command.ExecuteScalar();
                     return userCount > 0;
                 }
@@ -168,6 +174,8 @@ namespace CertiScan.Services
             return historial;
         }
 
+        // --- ¡MODIFICADO! ---
+        // Se quitó el PasswordHasher
         public bool AddUser(string fullName, string username, string password)
         {
             using (var connection = new SqlConnection(_connectionString))
@@ -185,13 +193,17 @@ namespace CertiScan.Services
                     }
                 }
 
-                string passwordHash = PasswordHasher.ComputeSha256Hash(password);
-                var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, PasswordHash) VALUES (@FullName, @Username, @PasswordHash)";
+                // Ya no se calcula el HASH
+                // string passwordHash = PasswordHasher.ComputeSha256Hash(password);
+
+                // Se inserta en la columna "Password"
+                var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password) VALUES (@FullName, @Username, @Password)";
                 using (var insertCommand = new SqlCommand(insertQuery, connection))
                 {
                     insertCommand.Parameters.AddWithValue("@FullName", fullName);
                     insertCommand.Parameters.AddWithValue("@Username", username);
-                    insertCommand.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                    // Se pasa la contraseña en texto plano
+                    insertCommand.Parameters.AddWithValue("@Password", password);
                     int rowsAffected = insertCommand.ExecuteNonQuery();
                     return rowsAffected > 0;
                 }

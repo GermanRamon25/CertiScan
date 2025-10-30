@@ -57,32 +57,45 @@ namespace CertiScan
             }
         }
 
+        // --- INICIO DE LA MODIFICACIÓN ---
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
+            ErrorMessage.Text = ""; // Limpia errores previos
             string username = UsernameTextBox.Text;
             string password = PasswordBox.Password;
 
-            if (_databaseService.ValidateUser(username, password))
+            try
             {
-                // --- INICIO DE LA MODIFICACIÓN ---
-                // Se obtiene la información completa del usuario desde la base de datos.
-                var user = _databaseService.GetUserByUsername(username);
-                if (user != null)
+                if (_databaseService.ValidateUser(username, password))
                 {
-                    // Se guardan el ID y el nombre del usuario en el servicio de sesión.
-                    SessionService.Login(user.Id, user.NombreUsuario);
-                }
-                // --- FIN DE LA MODIFICACIÓN ---
+                    // --- INICIO DE LA MODIFICACIÓN ---
+                    // Se obtiene la información completa del usuario desde la base de datos.
+                    var user = _databaseService.GetUserByUsername(username);
+                    if (user != null)
+                    {
+                        // Se guardan el ID y el nombre del usuario en el servicio de sesión.
+                        SessionService.Login(user.Id, user.NombreUsuario);
+                    }
+                    // --- FIN DE LA MODIFICACIÓN ---
 
-                MainWindow mainWindow = new MainWindow();
-                mainWindow.Show();
-                this.Close();
+                    MainWindow mainWindow = new MainWindow();
+                    mainWindow.Show();
+                    this.Close();
+                }
+                else
+                {
+                    ErrorMessage.Text = "Usuario o contraseña incorrectos.";
+                }
             }
-            else
+            catch (Exception ex)
             {
-                ErrorMessage.Text = "Usuario o contraseña incorrectos.";
+                // ESTA ES LA CORRECCIÓN:
+                // Si la conexión falla (por App.config mal, servidor apagado, etc.)
+                // el error se mostrará aquí en lugar de cerrar la app.
+                ErrorMessage.Text = $"Error al conectar a la base de datos: {ex.Message}";
             }
         }
+        // --- FIN DE LA MODIFICACIÓN ---
 
         // --- MÉTODO NUEVO AÑADIDO ---
         private void RegisterButton_Click(object sender, RoutedEventArgs e)
