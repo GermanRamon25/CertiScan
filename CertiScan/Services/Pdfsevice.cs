@@ -91,10 +91,10 @@ namespace CertiScan.Services
                                 // Info Notaría
                                 row.RelativeItem().Column(col =>
                                 {
-                                    col.Item().Text("LIC. SERGIO AGUILASOCHO GARCÍA").Bold().FontSize(14);
-                                    col.Item().Text("NOTARIA PUBLICA No. 215").FontSize(12);
-                                    col.Item().PaddingTop(10).Text("Blvd. Romualdo Ruiz Payan 210, Fracc, Miravalle, Guasave, Sinaloa, C.P. 81048").FontSize(9);
-                                    col.Item().Text("Tel: (687) 883.64.64 | saguilasocho@notario215.com").FontSize(9);
+                                    col.Item().Text("LIC. RICARDO AGUILASOCHO RUBIO").Bold().FontSize(14);
+                                    col.Item().Text("NOTARIA PUBLICA No. 138").FontSize(12);
+                                    col.Item().PaddingTop(10).Text("Av. Antonio Norzagaray #1127 y Diaz de León, Guasave, Sinaloa,MEXICO, C.P. 81000").FontSize(9);
+                                    col.Item().Text("Tel: (687) 872 37 80 | ricardoaguilasocho@prodigy.net.mx").FontSize(9);
                                 });
                                 // Logo
                                 if (logoData != null)
@@ -154,8 +154,8 @@ namespace CertiScan.Services
                                    signatureCol.Spacing(5);
                                    signatureCol.Item().AlignCenter().Text("Atentamente:");
                                    signatureCol.Item().PaddingTop(40).AlignCenter().Text("_________________________");
-                                   signatureCol.Item().AlignCenter().Text("Lic. Sergio Aguilasocho García.");
-                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 215");
+                                   signatureCol.Item().AlignCenter().Text("Lic. RICARDO AGUILASOCHO RUBIO .");
+                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 138");
                                });
                         });
 

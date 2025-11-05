@@ -242,7 +242,7 @@
                            HorizontalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
 
-                    <TextBlock Text="NOTARÍA PÚBLICA No. 215" 
+                    <TextBlock Text="NOTARÍA PÚBLICA No. 138" 
                                Foreground="{StaticResource SecondaryGray}"
  
                                FontSize="14" 
