@@ -53,19 +53,16 @@ namespace CertiScan.Services
             return resultados;
         }
 
-        // --- MÉTODO MODIFICADO ---
         public void RegistrarBusqueda(string terminoBuscado, bool resultadoEncontrado, int usuarioId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                // Se actualiza la consulta para incluir el UsuarioId
                 var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId) VALUES (@Termino, @Encontrado, @UsuarioId)";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Termino", terminoBuscado);
                     command.Parameters.AddWithValue("@Encontrado", resultadoEncontrado);
-                    // Se añade el nuevo parámetro para el ID del usuario
                     command.Parameters.AddWithValue("@UsuarioId", usuarioId);
                     command.ExecuteNonQuery();
                 }
@@ -87,22 +84,15 @@ namespace CertiScan.Services
             }
         }
 
-        // --- ¡MODIFICADO! ---
-        // Se quitó el PasswordHasher
         public bool ValidateUser(string username, string password)
         {
-            // Ya no se calcula el HASH
-            // string passwordHash = PasswordHasher.ComputeSha256Hash(password); 
-
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                // Se compara directamente con la columna "Password"
                 var query = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username AND Password = @Password";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Username", username);
-                    // Se pasa la contraseña en texto plano
                     command.Parameters.AddWithValue("@Password", password);
                     int userCount = (int)command.ExecuteScalar();
                     return userCount > 0;
@@ -110,7 +100,6 @@ namespace CertiScan.Services
             }
         }
 
-        // --- MÉTODO NUEVO AÑADIDO ---
         public Usuario GetUserByUsername(string username)
         {
             using (var connection = new SqlConnection(_connectionString))
@@ -134,25 +123,29 @@ namespace CertiScan.Services
                     }
                 }
             }
-            return null; // Usuario no encontrado
+            return null;
         }
 
-        // --- MÉTODO NUEVO AÑADIDO ---
+        // --- MÉTODO CORREGIDO ---
         public List<BusquedaHistorial> GetSearchHistory()
         {
             var historial = new List<BusquedaHistorial>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
+
+                // === INICIO DE LA CORRECCIÓN ===
+                // Cambiamos b.FechaBusqueda por b.FechaCarga
                 var query = @"
                     SELECT
                         u.NombreUsuario,
                         b.TerminoBuscado,
-                        b.FechaBusqueda,
+                        b.FechaCarga,
                         b.ResultadoEncontrado
                     FROM Busquedas b
                     JOIN Usuarios u ON b.UsuarioId = u.Id
-                    ORDER BY b.FechaBusqueda DESC";
+                    ORDER BY b.FechaCarga DESC";
+                // === FIN DE LA CORRECCIÓN ===
 
                 using (var command = new SqlCommand(query, connection))
                 {
@@ -164,7 +157,7 @@ namespace CertiScan.Services
                             {
                                 NombreUsuario = reader.GetString(0),
                                 TerminoBuscado = reader.GetString(1),
-                                FechaBusqueda = reader.GetDateTime(2),
+                                FechaBusqueda = reader.GetDateTime(2), // Esto está bien, lee la columna 3 (índice 2)
                                 ResultadoEncontrado = reader.GetBoolean(3)
                             });
                         }
@@ -174,8 +167,6 @@ namespace CertiScan.Services
             return historial;
         }
 
-        // --- ¡MODIFICADO! ---
-        // Se quitó el PasswordHasher
         public bool AddUser(string fullName, string username, string password)
         {
             using (var connection = new SqlConnection(_connectionString))
@@ -193,16 +184,11 @@ namespace CertiScan.Services
                     }
                 }
 
-                // Ya no se calcula el HASH
-                // string passwordHash = PasswordHasher.ComputeSha256Hash(password);
-
-                // Se inserta en la columna "Password"
                 var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password) VALUES (@FullName, @Username, @Password)";
                 using (var insertCommand = new SqlCommand(insertQuery, connection))
                 {
                     insertCommand.Parameters.AddWithValue("@FullName", fullName);
                     insertCommand.Parameters.AddWithValue("@Username", username);
-                    // Se pasa la contraseña en texto plano
                     insertCommand.Parameters.AddWithValue("@Password", password);
                     int rowsAffected = insertCommand.ExecuteNonQuery();
                     return rowsAffected > 0;
