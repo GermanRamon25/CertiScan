@@ -41,7 +41,7 @@ namespace CertiScan.ViewModels
         }
 
 
-        // --- INICIO DE LA MODIFICACIÓN ---
+        
         private void RegenerateCertificate(BusquedaHistorial historyItem)
         {
             if (historyItem == null) return;
@@ -53,7 +53,7 @@ namespace CertiScan.ViewModels
 
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
 
-                // AHORA LLAMAMOS AL MÉTODO CON 4 PARÁMETROS, INCLUYENDO LA FECHA ORIGINAL
+                // LLAMAMO AL MÉTODO CON 4 PARÁMETROS, INCLUYENDO LA FECHA ORIGINAL
                 _pdfService.GenerarConstancia(tempFilePath, historyItem.TerminoBuscado, esAprobatoria, historyItem.FechaBusqueda);
 
                 var viewer = new PdfViewerWindow(tempFilePath);
@@ -64,6 +64,6 @@ namespace CertiScan.ViewModels
                 MessageBox.Show($"Error al generar la constancia: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        // --- FIN DE LA MODIFICACIÓN ---
+        
     }
 }
