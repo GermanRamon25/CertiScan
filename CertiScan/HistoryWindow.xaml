@@ -56,7 +56,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaBusqueda, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="1.5*"/>
                 <DataGridTextColumn Header="Usuario" Binding="{Binding NombreUsuario}" Width="1*"/>
-                <DataGridTextColumn Header="Término Buscado" Binding="{Binding TerminoBuscado}" Width="2*"/>
+                <DataGridTextColumn Header="Nombre o Denominación" Binding="{Binding TerminoBuscado}" Width="2*"/>
                 <DataGridTextColumn Header="Resultado" Binding="{Binding ResultadoTexto}" Width="1*"/>
 
                 <DataGridTemplateColumn Header="Acción" Width="1.2*">

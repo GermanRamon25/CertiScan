@@ -91,10 +91,10 @@ namespace CertiScan.Services
                                 // Info Notaría
                                 row.RelativeItem().Column(col =>
                                 {
-                                    col.Item().Text("LIC. SERGIO AGUILASOCHO GARCÍA").Bold().FontSize(14);
-                                    col.Item().Text("NOTARIA PUBLICA No. 215").FontSize(12);
-                                    col.Item().PaddingTop(10).Text("Blvd. Romulado Ruíz Payán No.210 Fracc. Miravalle, Guasave, Sin. C.P. 81048").FontSize(9);
-                                    col.Item().Text("Tel: (687) 883-64-64| saguilasocho@notario215.com").FontSize(9);
+                                    col.Item().Text("LIC. RICARDO AGUILASOCHO RUBIO").Bold().FontSize(14);
+                                    col.Item().Text("NOTARIA PUBLICA No. 138").FontSize(12);
+                                    col.Item().PaddingTop(10).Text("AV. ANTONIO NORZAGARAY #1127 Y DIAZ DE LEON C.P 81000 GUASAVE, SINALOA, MEXICO").FontSize(9);
+                                    col.Item().Text("Tel: (687) 872-37-80| ricardoaguilasocho@prodigy.net.mx").FontSize(9);
                                 });
                                 // Logo
                                 if (logoData != null)
@@ -114,13 +114,13 @@ namespace CertiScan.Services
                             col.Item().PaddingTop(25).Text(text =>
                             {
                                 text.Justify();
-                                text.Span("Con fundamento en lo dispuesto por los artículos  103 y 115 de la Ley de Instituciones de Crédito vigente relativas a la lista de personas bloqueadas y atendiendo a la obligación del suscrito notario impuesta por diversas disposiciones legales tales como el numeral 17, fracción XII, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que el personal de esta notaría a mi cargo con esta fecha ");
+                                text.Span("Con fundamento en lo dispuesto por el artículo 115 de la Ley de Instituciones de Crédito vigente relativas a la lista de personas bloqueadas y atendiendo a la obligación del suscrito notario impuesta por diversas disposiciones legales tales como el numeral 17, fracción XII, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que el personal de esta notaría a mi cargo con esta fecha ");
                                 text.Span($"{fechaDeBusqueda:dd/MM/yyyy}").Bold();
                                 text.Span(" realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
                             });
 
                             // Nombre buscado
-                            col.Item().PaddingTop(25).Text(text => { text.Span("SR.(A) ").Bold(); text.Span(terminoBuscado).Bold(); });
+                            col.Item().PaddingTop(25).Text(text => { text.Span("Nombre o Denominación: ").Bold(); text.Span(terminoBuscado).Bold(); });
 
                             // Resultado (SI/NO encontrado y archivos)
                             col.Item().PaddingTop(15).Text(text =>
@@ -154,8 +154,8 @@ namespace CertiScan.Services
                                    signatureCol.Spacing(5);
                                    signatureCol.Item().AlignCenter().Text("Atentamente:");
                                    signatureCol.Item().PaddingTop(40).AlignCenter().Text("_________________________");
-                                   signatureCol.Item().AlignCenter().Text("Lic. SERGIO AGUILASOCHO GARCÍA .");
-                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 215");
+                                   signatureCol.Item().AlignCenter().Text("LIC. RICARDO AGUILASOCHO RUBIO .");
+                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 138");
                                });
                         });
 
