@@ -283,6 +283,8 @@ namespace CertiScan.ViewModels
         }
 
 
+        
+
         private void GenerarConstancia(bool generarAprobatoriaParametroIgnorado)
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda))
@@ -298,6 +300,11 @@ namespace CertiScan.ViewModels
                 _pdfService.GenerarConstancia(tempFilePath, TerminoBusqueda, esAprobatoriaReal, _nombresArchivosEncontrados);
                 var viewer = new PdfViewerWindow(tempFilePath);
                 viewer.Show();
+
+                // 🟢 INICIO DE LA CORRECCIÓN: Limpiar la búsqueda y refrescar la vista.
+                RefreshView();
+                // 🟢 FIN DE LA CORRECCIÓN
+
             }
             catch (Exception ex)
             {
