@@ -1,548 +1,262 @@
-﻿// ESTE CODIGO ES DE DATASERVICE ES PARA MI COMPUTADROA DE DESARROLLO NO PONER EN NOTARIAS 
+﻿//ESTE CODIGO ES DE DATASERVICE PARA LAS NOTARIAS SE PONDFRA ESTE CODIGO
 
 
 using Microsoft.Data.SqlClient;
-
 using System;
-
 using System.Collections.Generic;
-
 using CertiScan.Models;
-
 using System.Configuration;
 
-
-
 namespace CertiScan.Services
-
 {
-
     public class DatabaseService
-
     {
-
         private readonly string _connectionString = ConfigurationManager.ConnectionStrings["CertiScanDBConnection"].ConnectionString;
 
-
-
         public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto)
-
         {
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
                 var query = "INSERT INTO Documentos (NombreArchivo, RutaFisica, ContenidoTexto) VALUES (@NombreArchivo, @RutaFisica, @ContenidoTexto)";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     command.Parameters.AddWithValue("@NombreArchivo", nombreArchivo);
-
                     command.Parameters.AddWithValue("@RutaFisica", rutaFisica);
-
                     command.Parameters.AddWithValue("@ContenidoTexto", contenidoTexto);
-
                     command.ExecuteNonQuery();
-
                 }
-
             }
-
         }
-
-
 
         public List<Documento> BuscarTermino(string termino)
-
         {
-
             var resultados = new List<Documento>();
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
                 var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE CONTAINS(ContenidoTexto, @Termino)";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     command.Parameters.AddWithValue("@Termino", $"\"{termino}\"");
-
                     using (var reader = command.ExecuteReader())
-
                     {
-
                         while (reader.Read())
-
                         {
-
                             resultados.Add(new Documento
-
                             {
-
                                 Id = reader.GetInt32(0),
-
                                 NombreArchivo = reader.GetString(1),
-
                                 FechaCarga = reader.GetDateTime(2)
-
                             });
-
                         }
-
                     }
-
                 }
-
             }
-
             return resultados;
-
         }
-
-
-
-        // --- MÉTODO MODIFICADO ---
 
         public void RegistrarBusqueda(string terminoBuscado, bool resultadoEncontrado, int usuarioId)
-
         {
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
-                // Se actualiza la consulta para incluir el UsuarioId
-
                 var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId) VALUES (@Termino, @Encontrado, @UsuarioId)";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     command.Parameters.AddWithValue("@Termino", terminoBuscado);
-
                     command.Parameters.AddWithValue("@Encontrado", resultadoEncontrado);
-
-                    // Se añade el nuevo parámetro para el ID del usuario
-
                     command.Parameters.AddWithValue("@UsuarioId", usuarioId);
-
                     command.ExecuteNonQuery();
-
                 }
-
             }
-
         }
-
-
 
         public string GetDocumentoContent(int documentoId)
-
         {
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
                 var query = "SELECT ContenidoTexto FROM Documentos WHERE Id = @Id";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     command.Parameters.AddWithValue("@Id", documentoId);
-
                     var result = command.ExecuteScalar();
-
                     return result != null ? result.ToString() : "Contenido no encontrado.";
-
                 }
-
             }
-
         }
-
-
-
-        // --- ¡MODIFICADO! ---
-
-        // Se quitó el PasswordHasher
 
         public bool ValidateUser(string username, string password)
-
         {
-
-            // Ya no se calcula el HASH
-
-            // string passwordHash = PasswordHasher.ComputeSha256Hash(password); 
-
-
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
-                // Se compara directamente con la columna "Password"
-
                 var query = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username AND Password = @Password";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     command.Parameters.AddWithValue("@Username", username);
-
-                    // Se pasa la contraseña en texto plano
-
                     command.Parameters.AddWithValue("@Password", password);
-
                     int userCount = (int)command.ExecuteScalar();
-
                     return userCount > 0;
-
                 }
-
             }
-
         }
-
-
-
-        // --- MÉTODO NUEVO AÑADIDO ---
 
         public Usuario GetUserByUsername(string username)
-
         {
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
                 var query = "SELECT Id, NombreCompleto, NombreUsuario FROM Usuarios WHERE NombreUsuario = @Username";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     command.Parameters.AddWithValue("@Username", username);
-
                     using (var reader = command.ExecuteReader())
-
                     {
-
                         if (reader.Read())
-
                         {
-
                             return new Usuario
-
                             {
-
                                 Id = reader.GetInt32(0),
-
                                 NombreCompleto = reader.GetString(1),
-
                                 NombreUsuario = reader.GetString(2)
-
                             };
-
                         }
-
                     }
-
                 }
-
             }
-
-            return null; // Usuario no encontrado
-
+            return null;
         }
 
-
-
-        // --- MÉTODO NUEVO AÑADIDO ---
-
+        // --- MÉTODO CORREGIDO ---
         public List<BusquedaHistorial> GetSearchHistory()
-
         {
-
             var historial = new List<BusquedaHistorial>();
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
 
+                // === INICIO DE LA CORRECCIÓN ===
+                // Cambiamos b.FechaBusqueda por b.FechaCarga
                 var query = @"
-
                     SELECT
-
                         u.NombreUsuario,
-
                         b.TerminoBuscado,
-
-                        b.FechaBusqueda,
-
+                        b.FechaCarga,
                         b.ResultadoEncontrado
-
                     FROM Busquedas b
-
                     JOIN Usuarios u ON b.UsuarioId = u.Id
-
-                    ORDER BY b.FechaBusqueda DESC";
-
-
+                    ORDER BY b.FechaCarga DESC";
+                // === FIN DE LA CORRECCIÓN ===
 
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     using (var reader = command.ExecuteReader())
-
                     {
-
                         while (reader.Read())
-
                         {
-
                             historial.Add(new BusquedaHistorial
-
                             {
-
                                 NombreUsuario = reader.GetString(0),
-
                                 TerminoBuscado = reader.GetString(1),
-
-                                FechaBusqueda = reader.GetDateTime(2),
-
+                                FechaBusqueda = reader.GetDateTime(2), // Esto está bien, lee la columna 3 (índice 2)
                                 ResultadoEncontrado = reader.GetBoolean(3)
-
                             });
-
                         }
-
                     }
-
                 }
-
             }
-
             return historial;
-
         }
-
-
-
-        // --- ¡MODIFICADO! ---
-
-        // Se quitó el PasswordHasher
 
         public bool AddUser(string fullName, string username, string password)
-
         {
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
-
 
                 var checkUserQuery = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username";
-
                 using (var checkUserCommand = new SqlCommand(checkUserQuery, connection))
-
                 {
-
                     checkUserCommand.Parameters.AddWithValue("@Username", username);
-
                     int userCount = (int)checkUserCommand.ExecuteScalar();
-
                     if (userCount > 0)
-
                     {
-
                         throw new Exception("El nombre de usuario ya está en uso. Por favor, elige otro.");
-
                     }
-
                 }
-
-
-
-                // Ya no se calcula el HASH
-
-                // string passwordHash = PasswordHasher.ComputeSha256Hash(password);
-
-
-
-                // Se inserta en la columna "Password"
 
                 var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password) VALUES (@FullName, @Username, @Password)";
-
                 using (var insertCommand = new SqlCommand(insertQuery, connection))
-
                 {
-
                     insertCommand.Parameters.AddWithValue("@FullName", fullName);
-
                     insertCommand.Parameters.AddWithValue("@Username", username);
-
-                    // Se pasa la contraseña en texto plano
-
                     insertCommand.Parameters.AddWithValue("@Password", password);
-
                     int rowsAffected = insertCommand.ExecuteNonQuery();
-
                     return rowsAffected > 0;
-
                 }
-
             }
-
         }
-
-
 
         public List<Documento> GetAllDocuments()
-
         {
-
             var resultados = new List<Documento>();
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
                 var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos ORDER BY FechaCarga DESC";
-
                 using (var command = new SqlCommand(query, connection))
-
                 {
-
                     using (var reader = command.ExecuteReader())
-
                     {
-
                         while (reader.Read())
-
                         {
-
                             resultados.Add(new Documento
-
                             {
-
                                 Id = reader.GetInt32(0),
-
                                 NombreArchivo = reader.GetString(1),
-
                                 FechaCarga = reader.GetDateTime(2)
-
                             });
-
                         }
-
                     }
-
                 }
-
             }
-
             return resultados;
-
         }
-
-
 
         public string DeleteDocument(int documentId)
-
         {
-
             using (var connection = new SqlConnection(_connectionString))
-
             {
-
                 connection.Open();
-
                 string filePath = null;
 
-
-
                 var selectQuery = "SELECT RutaFisica FROM Documentos WHERE Id = @Id";
-
                 using (var selectCommand = new SqlCommand(selectQuery, connection))
-
                 {
-
                     selectCommand.Parameters.AddWithValue("@Id", documentId);
-
                     var result = selectCommand.ExecuteScalar();
-
                     if (result != null)
-
                     {
-
                         filePath = result.ToString();
-
                     }
-
                 }
-
-
 
                 if (filePath == null)
-
                 {
-
                     throw new Exception("No se encontró el documento en la base de datos.");
-
                 }
-
-
 
                 var deleteQuery = "DELETE FROM Documentos WHERE Id = @Id";
-
                 using (var deleteCommand = new SqlCommand(deleteQuery, connection))
-
                 {
-
                     deleteCommand.Parameters.AddWithValue("@Id", documentId);
-
                     deleteCommand.ExecuteNonQuery();
-
                 }
 
-
-
                 return filePath;
-
             }
-
         }
-
     }
-
 }

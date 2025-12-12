@@ -235,14 +235,14 @@
                 <StackPanel VerticalAlignment="Center" Margin="40">
 
 
-                    <Image Source="/CertiScan;component/Imagenes/LOGO_CERTISCAN.png" 
+                    <Image Source="/CertiScan;component/Imagenes/LOGO_LA.png" 
                            Width="250" Height="250" 
                            Margin="0,0,0,20" 
                        
                            HorizontalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
 
-                    <TextBlock Text="NOTARÍA PÚBLICA No. 138" 
+                    <TextBlock Text="NOTARÍA PÚBLICA No. 143" 
                                Foreground="{StaticResource SecondaryGray}"
  
                                FontSize="14" 

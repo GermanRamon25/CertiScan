@@ -61,7 +61,7 @@ namespace CertiScan.Services
             nombresArchivosEncontrados = nombresArchivosEncontrados ?? new List<string>();
 
             // --- Carga del Logo ---
-            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "LOGO_CERTISCAN.png");
+            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "LOGO_LA.png");
             byte[] logoData = null;
             try
             {
@@ -91,14 +91,17 @@ namespace CertiScan.Services
                                 // Info Notaría
                                 row.RelativeItem().Column(col =>
                                 {
-                                    col.Item().Text("LIC. RICARDO AGUILASOCHO RUBIO").Bold().FontSize(14);
-                                    col.Item().Text("NOTARIA PUBLICA No. 138").FontSize(12);
-                                    col.Item().PaddingTop(10).Text("AV. ANTONIO NORZAGARAY #1127 Y DIAZ DE LEON C.P 81000 GUASAVE, SINALOA, MEXICO").FontSize(9);
-                                    col.Item().Text("Tel: (687) 872-37-80| ricardoaguilasocho@prodigy.net.mx").FontSize(9);
+                                    col.Item().Text("LIC. JAIME HUMBERTO CECEÑA IMPERIAL").Bold().FontSize(14);
+                                    col.Item().Text("NOTARIA PUBLICA No. 143").FontSize(12);
+                                    col.Item().PaddingTop(10).Text("BLVD. JUAN DE DIOS BÁTIZ NO. 86-7 ORIENTE FRACCIONAMIENTO EL PARQUE,  C.P 81200  LOS MOCHIS, SINALOA, MEXICO").FontSize(9);
+                                    col.Item().Text("Tel: (668) 815 6780 | notario143jc@gmail.com").FontSize(9);
                                 });
                                 // Logo
                                 if (logoData != null)
-                                    row.ConstantItem(70).AlignRight().AlignTop().Image(logoData).FitArea();
+                                {
+                                    // AQUÍ ESTÁ EL CAMBIO: Se redujo de 70 a 50 para hacerlo más pequeño
+                                    row.ConstantItem(40).AlignRight().AlignTop().Image(logoData).FitArea();
+                                }
                             });
                             // Línea separadora
                             headerCol.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
@@ -154,8 +157,8 @@ namespace CertiScan.Services
                                    signatureCol.Spacing(5);
                                    signatureCol.Item().AlignCenter().Text("Atentamente:");
                                    signatureCol.Item().PaddingTop(40).AlignCenter().Text("_________________________");
-                                   signatureCol.Item().AlignCenter().Text("LIC. RICARDO AGUILASOCHO RUBIO .");
-                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 138");
+                                   signatureCol.Item().AlignCenter().Text("LIC. JAIME HUMBERTO CECEÑA IMPERIAL.");
+                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 143");
                                });
                         });
 
