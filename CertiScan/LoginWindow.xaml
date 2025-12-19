@@ -10,8 +10,8 @@
         WindowStyle="None" >
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryBlack" Color="Black"/>
-        <SolidColorBrush x:Key="SecondaryGray" Color="#4A4A4A"/>
+        <SolidColorBrush x:Key="PrimaryBlack" Color="#213449"/>
+        <SolidColorBrush x:Key="SecondaryGray" Color="Black"/>
         <SolidColorBrush x:Key="AccentLightGray" Color="#F0F0F0"/>
         <SolidColorBrush x:Key="TextLight" Color="White"/>
         <SolidColorBrush x:Key="ControlBackground" Color="White"/>
@@ -235,7 +235,7 @@
                 <StackPanel VerticalAlignment="Center" Margin="40">
 
 
-                    <Image Source="/CertiScan;component/Imagenes/LOGO_LA.png" 
+                    <Image Source="/CertiScan;component/Imagenes/CERTISCAN.LOGO.png" 
                            Width="250" Height="250" 
                            Margin="0,0,0,20" 
                        

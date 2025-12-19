@@ -61,7 +61,7 @@ namespace CertiScan.Services
             nombresArchivosEncontrados = nombresArchivosEncontrados ?? new List<string>();
 
             // --- Carga del Logo ---
-            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "LOGO_LA.png");
+            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "CERTISCAN.LOGO.png");
             byte[] logoData = null;
             try
             {

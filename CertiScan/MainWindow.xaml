@@ -7,111 +7,35 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="CertiScan | Sistema de Búsqueda UIF"
-        Height="650" Width="1058"
-        WindowStartupLocation="CenterScreen">
+        Height="750" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F2F5">
 
     <Window.Resources>
-        <Style x:Key="RefreshButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="ToolTip" Value="Refrescar Vista"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="15">
-                            <Image Source="/CertiScan;component/Imagenes/refresh_icon.png" Stretch="Uniform"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Opacity" Value="0.7"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Opacity" Value="0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <SolidColorBrush x:Key="PrimaryBlack" Color="#1E1E1E"/>
-        <SolidColorBrush x:Key="SecondaryGray" Color="#4A4A4A"/>
-        <SolidColorBrush x:Key="AccentLightGray" Color="#F0F0F0"/>
-        <SolidColorBrush x:Key="ControlBackground" Color="White"/>
-        <SolidColorBrush x:Key="BorderHighlight" Color="#CCCCCC"/>
-        <SolidColorBrush x:Key="ErrorRed" Color="#C0392B"/>
         <sys:Boolean x:Key="ValorTrue">True</sys:Boolean>
         <sys:Boolean x:Key="ValorFalse">False</sys:Boolean>
 
-        <Style x:Key="UserMenuToggleStyle" TargetType="{x:Type ToggleButton}">
-            <Setter Property="Background" Value="Transparent"/>
+        <SolidColorBrush x:Key="HeaderDark" Color="#213449"/>
+        <SolidColorBrush x:Key="PrimaryBlue" Color="#2196F3"/>
+        <SolidColorBrush x:Key="SuccessGreen" Color="#2E7D32"/>
+        <SolidColorBrush x:Key="ErrorRed" Color="#C62828"/>
+
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#213449"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="12,5"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryBlack}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ToggleButton}">
-                        <Border Background="{TemplateBinding Background}" Padding="8,5" CornerRadius="6">
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E0E0E0"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="PopupBorderStyle" TargetType="{x:Type Border}">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#AAAAAA"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="15"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect ShadowDepth="3" BlurRadius="10" Color="#88000000" Opacity="0.3"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="MainActionButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="{StaticResource PrimaryBlack}"/>
-            <Setter Property="Foreground" Value="{StaticResource ControlBackground}"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource SecondaryGray}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#0A0A0A"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
@@ -122,107 +46,35 @@
             </Setter>
         </Style>
 
-        <Style x:Key="DeleteButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource MainActionButtonStyle}">
-            <Setter Property="Background" Value="{StaticResource ErrorRed}"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#922B21"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#78221A"/>
-                </Trigger>
-            </Style.Triggers>
+        <Style x:Key="AprobatoriaStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource SuccessGreen}"/>
         </Style>
-        <Style x:Key="SearchTextBoxStyle" TargetType="{x:Type TextBox}">
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="Margin" Value="10,0"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderHighlight}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="{StaticResource ControlBackground}"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryBlack}"/>
+        <Style x:Key="DenegadaStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource ErrorRed}"/>
+        </Style>
+        <Style x:Key="EliminarStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#D32F2F"/>
+        </Style>
+
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TextBox}">
-                        <Border x:Name="border"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="6">
-
-                            <Grid>
-                                <TextBlock IsHitTestVisible="False"
-                                           Text="Nombre o Denominación" 
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Left"
-                                           Margin="10,0,0,0"
-                                           Foreground="{StaticResource SecondaryGray}"
-                                           Opacity="0.6">
-                                    <TextBlock.Style>
-                                        <Style TargetType="{x:Type TextBlock}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type TextBox}}}" Value="">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type TextBox}}}" Value="{x:Static sys:String.Empty}">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding IsFocused, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type TextBox}}}" Value="True">
-                                                    <Setter Property="Visibility" Value="Hidden"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-
-                                <ScrollViewer x:Name="PART_ContentHost" 
-                                              Focusable="False" 
-                                              HorizontalScrollBarVisibility="Hidden" 
-                                              VerticalScrollBarVisibility="Hidden"
-                                              Padding="{TemplateBinding Padding}"/>
-                            </Grid>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Background="White" CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource SecondaryGray}"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryBlack}"/>
-                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style TargetType="{x:Type DataGrid}">
-            <Setter Property="Background" Value="{StaticResource ControlBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderHighlight}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="GridLinesVisibility" Value="None"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-        </Style>
-        <Style TargetType="DataGridRow">
-            <Setter Property="Background" Value="{StaticResource ControlBackground}"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsSearchResult}" Value="True">
-                    <Setter Property="Background" Value="#FFF7E1"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="{x:Type RichTextBox}">
-            <Setter Property="BorderBrush" Value="{StaticResource BorderHighlight}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="{StaticResource ControlBackground}"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryBlack}"/>
-            <Setter Property="Padding" Value="10"/>
-        </Style>
-
     </Window.Resources>
 
-    <Grid Margin="15" Background="{StaticResource AccentLightGray}">
+    <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="60"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="8"/>
@@ -230,75 +82,97 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,15">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <Border Grid.Row="0" Background="{StaticResource HeaderDark}" Padding="15,0">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/CertiScan;component/Imagenes/CERTISCAN.LOGO.png" Height="40" Margin="0,0,15,0"/>
+                    <TextBlock Text="CERTISCAN | " Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Text="SISTEMA DE BÚSQUEDA UIF" Foreground="#BBBBBB" FontSize="16" VerticalAlignment="Center"/>
+                </StackPanel>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <Button Content="Cargar PDF" Width="130" Command="{Binding CargarPdfCommand}" Style="{StaticResource MainActionButtonStyle}"/>
-                <TextBox Width="350" Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}"/>
-                <Button Content="Buscar" Width="100" Command="{Binding BuscarCommand}" Style="{StaticResource MainActionButtonStyle}"/>
-                <Button Content="Eliminar PDF" Width="130" Margin="15,0,0,0" Command="{Binding DeletePdfCommand}" Style="{StaticResource DeleteButtonStyle}"/>
-                <Button Content="Ver Historial" Width="130" Margin="15,0,0,0" Command="{Binding ShowHistoryCommand}" Style="{StaticResource MainActionButtonStyle}"/>
+                <Grid HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <ToggleButton x:Name="UserMenuButton" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border Background="Transparent" Padding="5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="👤" Foreground="White" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding NombreUsuarioLogueado}" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" FontSize="14"/>
+                                        <TextBlock Text=" ▾" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
 
-                <Button Style="{StaticResource RefreshButtonStyle}"
-                        Margin="15,0,0,0"
-                        Command="{Binding RefreshCommand}" Height="36" Width="50"/>
-            </StackPanel>
-
-            <Grid Grid.Column="1" VerticalAlignment="Top">
-
-                <ToggleButton x:Name="UserMenuButton" Style="{StaticResource UserMenuToggleStyle}">
-                    <StackPanel Orientation="Horizontal" RenderTransformOrigin="0.548,0.593">
-                        <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock Text="{Binding NombreUsuarioLogueado}" VerticalAlignment="Center" />
-                    </StackPanel>
-                </ToggleButton>
-
-                <Popup x:Name="UserPopup"
-                       IsOpen="{Binding IsChecked, ElementName=UserMenuButton}"
-                       StaysOpen="False"
-                       Placement="Bottom"
-                       PlacementTarget="{Binding ElementName=UserMenuButton}"
-                       AllowsTransparency="True"
-                       PopupAnimation="Fade"
-                       Margin="0,5,0,0">
-
-                    <Border Style="{StaticResource PopupBorderStyle}">
-                        <StackPanel Width="200">
-                            <TextBlock Text="Nombre:" Foreground="{StaticResource SecondaryGray}" FontSize="12"/>
-
-                            <TextBlock Text="{Binding NombreUsuarioLogueado}"
-                                       Foreground="Black"
-                                       FontWeight="Bold"
-                                       FontSize="16"
-                                       Margin="0,0,0,15"/>
-
-                            <Button Content="Salir"
-                                    Style="{StaticResource MainActionButtonStyle}"
-                                    Click="LogoutButton_Click"/>
-                        </StackPanel>
-                    </Border>
-                </Popup>
+                    <Popup x:Name="UserPopup" 
+                           IsOpen="{Binding IsChecked, ElementName=UserMenuButton}" 
+                           StaysOpen="False" 
+                           Placement="Bottom" 
+                           PlacementTarget="{Binding ElementName=UserMenuButton}" 
+                           AllowsTransparency="True">
+                        <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,5,0,0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.2"/>
+                            </Border.Effect>
+                            <StackPanel Width="150">
+                                <TextBlock Text="Sesión activa:" FontSize="10" Foreground="Gray"/>
+                                <TextBlock Text="{Binding NombreUsuarioLogueado}" FontWeight="Bold" Margin="0,0,0,10"/>
+                                <Button Content="Cerrar Sesión" 
+                                        Style="{StaticResource ModernButtonStyle}"
+                                        Background="#D32F2F" 
+                                        Click="LogoutButton_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
             </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="15,15,15,10">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Cargar PDF" Width="120" Height="35" Style="{StaticResource ModernButtonStyle}" 
+                        Command="{Binding CargarPdfCommand}"/>
+
+                <TextBox Width="350" Margin="10,0" Style="{StaticResource ModernTextBox}" 
+                         Text="{Binding TerminoBusqueda, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <Button Content="Buscar" Width="100" Height="35" Style="{StaticResource ModernButtonStyle}" 
+                        Background="{StaticResource PrimaryBlue}" Command="{Binding BuscarCommand}"/>
+
+                <Button Content="Eliminar PDF" Width="120" Margin="15,0,0,0" Style="{StaticResource EliminarStyle}" 
+                        Command="{Binding DeletePdfCommand}"/>
+
+                <Button Content="Ver Historial" Width="120" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" 
+                        Command="{Binding ShowHistoryCommand}"/>
+
+                <Button Content="🔄" Width="40" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" 
+                        Background="Transparent" Foreground="Black" FontSize="18" Command="{Binding RefreshCommand}"/>
+            </StackPanel>
         </Grid>
-        <DataGrid Grid.Row="1" ItemsSource="{Binding DocumentosMostrados}" SelectedItem="{Binding SelectedDocumento}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+
+        <DataGrid Grid.Row="2" Margin="15,0" ItemsSource="{Binding DocumentosMostrados}" 
+                  SelectedItem="{Binding SelectedDocumento}" AutoGenerateColumns="False" 
+                  IsReadOnly="True" Background="White" BorderBrush="#DDDDDD" SelectionMode="Single">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Nombre del Archivo" Binding="{Binding NombreArchivo}" Width="*"/>
-                <DataGridTextColumn Header="Fecha de Carga" Binding="{Binding FechaCarga, StringFormat='dd/MM/yyyy HH:mm'}" Width="Auto"/>
+                <DataGridTextColumn Header="Fecha de Carga" Binding="{Binding FechaCarga, StringFormat='dd/MM/yyyy HH:mm'}" Width="180"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <GridSplitter Grid.Row="2" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="{StaticResource SecondaryGray}"/>
+        <GridSplitter Grid.Row="3" Height="8" HorizontalAlignment="Stretch" Background="#E0E0E0" VerticalAlignment="Center"/>
 
-        <RichTextBox Grid.Row="3" local:RichTextBoxHelper.Document="{Binding ContenidoDocumento}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" Style="{StaticResource {x:Type RichTextBox}}"/>
+        <RichTextBox Grid.Row="4" Margin="15,5" IsReadOnly="True" BorderBrush="#DDDDDD" 
+                     local:RichTextBoxHelper.Document="{Binding ContenidoDocumento}" VerticalScrollBarVisibility="Auto"/>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,20,0,0" HorizontalAlignment="Center">
-            <Button Content="Generar Constancia Aprobatoria" Width="220" Command="{Binding GenerarConstanciaCommand}" CommandParameter="{StaticResource ValorTrue}" Style="{StaticResource MainActionButtonStyle}" IsEnabled="{Binding IsAprobatoriaButtonEnabled}"/>
-            <Button Content="Generar Constancia Denegada" Width="228" Margin="20,0,0,0" Command="{Binding GenerarConstanciaCommand}" CommandParameter="{StaticResource ValorFalse}" Style="{StaticResource MainActionButtonStyle}" Height="45" IsEnabled="{Binding IsDenegadaButtonEnabled}"/>
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,15">
+            <Button Content="Generar Constancia Aprobatoria" Width="250" Height="45" Style="{StaticResource AprobatoriaStyle}" 
+                    Margin="0,0,20,0" Command="{Binding GenerarConstanciaCommand}" 
+                    CommandParameter="{StaticResource ValorTrue}" IsEnabled="{Binding IsAprobatoriaButtonEnabled}"/>
+
+            <Button Content="Generar Constancia Denegada" Width="250" Height="45" Style="{StaticResource DenegadaStyle}" 
+                    Command="{Binding GenerarConstanciaCommand}" 
+                    CommandParameter="{StaticResource ValorFalse}" IsEnabled="{Binding IsDenegadaButtonEnabled}"/>
         </StackPanel>
-
     </Grid>
 </Window>
