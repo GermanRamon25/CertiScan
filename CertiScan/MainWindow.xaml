@@ -64,8 +64,24 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
                         <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Background="White" CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost"/>
+                            <Grid>
+                                <TextBlock x:Name="PlaceholderText" 
+                                           Text="Nombre o denominación" 
+                                           Foreground="#70757a" 
+                                           FontSize="13"
+                                           VerticalAlignment="Center" 
+                                           Margin="12,0" 
+                                           IsHitTestVisible="False" 
+                                           Visibility="Collapsed"/>
+
+                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                            </Grid>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>

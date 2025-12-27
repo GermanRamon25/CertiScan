@@ -236,20 +236,13 @@
 
 
                     <Image Source="/CertiScan;component/Imagenes/CERTISCAN.LOGO.png" 
-                           Width="250" Height="250" 
+                           Width="280" Height="280" 
                            Margin="0,0,0,20" 
                        
                            HorizontalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
 
-                    <TextBlock Text="NOTARÍA PÚBLICA No. 143" 
-                               Foreground="{StaticResource SecondaryGray}"
- 
-                               FontSize="14" 
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-       
-                               TextWrapping="Wrap"/>
+                  
                 </StackPanel>
             </Border>
 
