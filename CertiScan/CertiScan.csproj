@@ -339,7 +339,7 @@
     <Compile Include="LoginWindow.xaml.cs">
       <DependentUpon>LoginWindow.xaml</DependentUpon>
     </Compile><Compile Include="Models\NotariaInfo.cs" />
-    <Compile Include="Models\Usuario.cs" />
+    <Compile Include="Models\Usuario.cs" /><Compile Include="NotariaWindow.xaml.cs"><DependentUpon>NotariaWindow.xaml</DependentUpon></Compile>
     <Compile Include="PdfViewerWindow.xaml.cs">
       <DependentUpon>PdfViewerWindow.xaml</DependentUpon>
     </Compile>
@@ -373,7 +373,7 @@
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
-    </Compile>
+    </Compile><Page Include="NotariaWindow.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="PdfViewerWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

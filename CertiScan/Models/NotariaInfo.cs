@@ -8,9 +8,11 @@ namespace CertiScan.Models
 {
     public class NotariaInfo
     {
+        public int Id { get; set; }
         public string NombreNotario { get; set; }
         public string NumeroNotaria { get; set; }
         public string Direccion { get; set; }
-        public string Contacto { get; set; }
+        public string Telefono { get; set; }
+        public string Email { get; set; }
     }
 }
