@@ -13,6 +13,15 @@ using System.Collections.Generic;
 
 namespace CertiScan.Services
 {
+    // Nueva clase para transportar los datos manuales del cliente
+    public class DatosNotaria
+    {
+        public string NombreNotario { get; set; }
+        public string NumeroNotaria { get; set; }
+        public string DireccionCompleta { get; set; }
+        public string DatosContacto { get; set; }
+    }
+
     public class PdfService
     {
         static PdfService()
@@ -23,7 +32,6 @@ namespace CertiScan.Services
             }
             catch (Exception ex)
             {
-                // Si falla la inicialización, no se detiene la aplicación
                 Console.WriteLine($"[Advertencia] No se pudo inicializar QuestPDF: {ex.Message}");
             }
         }
@@ -49,29 +57,24 @@ namespace CertiScan.Services
             return textoProcesado.ToString();
         }
 
-        // --- Sobrecarga #1: Usada por MainViewModel
-        public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados)
-        {
-            GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, DateTime.Now, nombresArchivosEncontrados ?? new List<string>());
-        }
-
-        // --- Sobrecarga #2: Usada por HistoryViewModel (Principal)
-        public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, DateTime fechaDeBusqueda, List<string> nombresArchivosEncontrados)
+        // --- MÉTODO ACTUALIZADO: Acepta el objeto 'datos' ---
+        public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados, DatosNotaria datos)
         {
             nombresArchivosEncontrados = nombresArchivosEncontrados ?? new List<string>();
 
-            // --- Carga del Logo ---
+            // Si por alguna razón 'datos' llega nulo, usamos valores por defecto para evitar errores
+            datos = datos ?? new DatosNotaria
+            {
+                NombreNotario = "NO ESPECIFICADO",
+                NumeroNotaria = "0",
+                DireccionCompleta = "SIN DIRECCIÓN",
+                DatosContacto = ""
+            };
+
             string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "CERTISCAN.LOGO.png");
             byte[] logoData = null;
-            try
-            {
-                if (File.Exists(logoPath))
-                    logoData = File.ReadAllBytes(logoPath);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al cargar logo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            try { if (File.Exists(logoPath)) logoData = File.ReadAllBytes(logoPath); }
+            catch (Exception ex) { MessageBox.Show($"Error al cargar logo: {ex.Message}"); }
 
             try
             {
@@ -83,27 +86,24 @@ namespace CertiScan.Services
                         page.Margin(50);
                         page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Helvetica"));
 
-                        // --- Encabezado ---
+                        // --- Encabezado Dinámico ---
                         page.Header().Column(headerCol =>
                         {
                             headerCol.Item().Row(row =>
                             {
-                                // Info Notaría
                                 row.RelativeItem().Column(col =>
                                 {
-                                    col.Item().Text("LIC. JAIME HUMBERTO CECEÑA IMPERIAL").Bold().FontSize(14);
-                                    col.Item().Text("NOTARIA PUBLICA No. 143").FontSize(12);
-                                    col.Item().PaddingTop(10).Text("BLVD. JUAN DE DIOS BÁTIZ NO. 86-7 ORIENTE FRACCIONAMIENTO EL PARQUE,  C.P 81200  LOS MOCHIS, SINALOA, MEXICO").FontSize(9);
-                                    col.Item().Text("Tel: (668) 815 6780 | notario143jc@gmail.com").FontSize(9);
+                                    // USAMOS LOS DATOS INGRESADOS MANUALMENTE
+                                    col.Item().Text(datos.NombreNotario.ToUpper()).Bold().FontSize(14);
+                                    col.Item().Text($"NOTARIA PUBLICA No. {datos.NumeroNotaria}").FontSize(12);
+                                    col.Item().PaddingTop(10).Text(datos.DireccionCompleta).FontSize(9);
+                                    col.Item().Text(datos.DatosContacto).FontSize(9);
                                 });
-                                // Logo
                                 if (logoData != null)
                                 {
-                                    // AQUÍ ESTÁ EL CAMBIO: Se redujo de 70 a 50 para hacerlo más pequeño
                                     row.ConstantItem(40).AlignRight().AlignTop().Image(logoData).FitArea();
                                 }
                             });
-                            // Línea separadora
                             headerCol.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                         });
 
@@ -113,42 +113,40 @@ namespace CertiScan.Services
                             col.Item().Text("UNIDAD DE INTELIGENCIA FINANCIERA").Bold().Underline();
                             col.Item().Text("PRESENTE:").Bold();
 
-                            // Texto introductorio
                             col.Item().PaddingTop(25).Text(text =>
                             {
                                 text.Justify();
                                 text.Span("Con fundamento en lo dispuesto por el artículo 115 de la Ley de Instituciones de Crédito vigente relativas a la lista de personas bloqueadas y atendiendo a la obligación del suscrito notario impuesta por diversas disposiciones legales tales como el numeral 17, fracción XII, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que el personal de esta notaría a mi cargo con esta fecha ");
-                                text.Span($"{fechaDeBusqueda:dd/MM/yyyy}").Bold();
-                                text.Span(" realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
+                                text.Span($"{DateTime.Now:dd/MM/yyyy}").Bold();
+                                text.Span(" realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria...");
                             });
 
-                            // Nombre buscado
-                            col.Item().PaddingTop(25).Text(text => { text.Span("Nombre o Denominación: ").Bold(); text.Span(terminoBuscado).Bold(); });
+                            col.Item().PaddingTop(25).Text(text => {
+                                text.Span("Nombre o Denominación: ").Bold();
+                                text.Span(terminoBuscado).Bold();
+                            });
 
-                            // Resultado (SI/NO encontrado y archivos)
                             col.Item().PaddingTop(15).Text(text =>
                             {
                                 if (esAprobatoria)
                                 {
                                     text.Span("NO").Bold();
-                                    text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero, crimen organizado o financiamiento al terrorismo.");
-                                    text.EmptyLine();
-                                    text.Span("No se encontró coincidencia en ningún archivo UIF cargado en el sistema.").Italic().FontSize(10);
+                                    text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero...");
                                 }
                                 else
                                 {
                                     text.Span("SI").Bold();
-                                    text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero, crimen organizado o financiamiento al terrorismo.");
+                                    text.Span(" se encontró dentro del listado...");
                                     if (nombresArchivosEncontrados.Any())
                                     {
                                         text.EmptyLine();
-                                        text.Span("La coincidencia fue encontrada en el/los siguiente(s) archivo(s) UIF: ").Italic().FontSize(10);
+                                        text.Span("Coincidencia en: ").Italic().FontSize(10);
                                         text.Span(string.Join(", ", nombresArchivosEncontrados)).Italic().FontSize(10).Bold();
                                     }
                                 }
                             });
 
-                            // Firma Agrupada y Centrada
+                            // --- Firma Dinámica ---
                             col.Item()
                                .PaddingTop(60)
                                .AlignCenter()
@@ -157,20 +155,18 @@ namespace CertiScan.Services
                                    signatureCol.Spacing(5);
                                    signatureCol.Item().AlignCenter().Text("Atentamente:");
                                    signatureCol.Item().PaddingTop(40).AlignCenter().Text("_________________________");
-                                   signatureCol.Item().AlignCenter().Text("LIC. JAIME HUMBERTO CECEÑA IMPERIAL.");
-                                   signatureCol.Item().AlignCenter().Text("Notario Público No. 143");
+                                   // USAMOS EL NOMBRE DEL NOTARIO INGRESADO
+                                   signatureCol.Item().AlignCenter().Text(datos.NombreNotario.ToUpper() + ".");
+                                   signatureCol.Item().AlignCenter().Text($"Notario Público No. {datos.NumeroNotaria}");
                                });
                         });
 
-                        // --- Pie de Página ---
                         page.Footer()
                             .AlignLeft()
                             .Text(text =>
                             {
                                 text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-                                text.Span("© ");
-                                text.Span($"{DateTime.Now.Year}");
-                                text.Span(" CertiScan | Desarrollado por: Germán Ramón Soto Valenzuela, Alondra Anaid Villegas Iturrios");
+                                text.Span($"© {DateTime.Now.Year} CertiScan | Sistema de Verificación Profesional");
                             });
                     });
                 })
@@ -182,15 +178,18 @@ namespace CertiScan.Services
             }
         }
 
-        // --- Sobrecargas antiguas ---
-        public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, DateTime fechaDeBusqueda)
+        // Sobrecarga para mantener compatibilidad con el resto del sistema si es necesario
+        public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados)
         {
-            GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, fechaDeBusqueda, new List<string>());
-        }
-
-        public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria)
-        {
-            GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, DateTime.Now, new List<string>());
+            // Por defecto, si no se envían datos, se usa la información anterior como respaldo
+            var datosDefault = new DatosNotaria
+            {
+                NombreNotario = "LIC. JAIME HUMBERTO CECEÑA IMPERIAL",
+                NumeroNotaria = "143",
+                DireccionCompleta = "BLVD. JUAN DE DIOS BÁTIZ NO. 86-7 ORIENTE, LOS MOCHIS, SINALOA",
+                DatosContacto = "Tel: (668) 815 6780 | notario143jc@gmail.com"
+            };
+            GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, nombresArchivosEncontrados, datosDefault);
         }
     }
 }

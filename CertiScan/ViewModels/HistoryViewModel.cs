@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Collections.Generic;
 
 namespace CertiScan.ViewModels
 {
@@ -40,8 +41,6 @@ namespace CertiScan.ViewModels
             }
         }
 
-
-        
         private void RegenerateCertificate(BusquedaHistorial historyItem)
         {
             if (historyItem == null) return;
@@ -53,8 +52,28 @@ namespace CertiScan.ViewModels
 
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
 
-                // LLAMAMO AL MÉTODO CON 4 PARÁMETROS, INCLUYENDO LA FECHA ORIGINAL
-                _pdfService.GenerarConstancia(tempFilePath, historyItem.TerminoBuscado, esAprobatoria, historyItem.FechaBusqueda);
+                // 1. Necesitamos recuperar la lista de archivos encontrados para esa búsqueda desde la DB
+                // o pasar una lista vacía si el historial no la guarda.
+                List<string> nombresArchivos = new List<string>();
+
+                // 2. IMPORTANTE: Como estamos en Historial, usamos datos por defecto 
+                // o podrías implementar una lógica para recordar qué notario la generó.
+                var datosDefault = new DatosNotaria
+                {
+                    NombreNotario = "LIC. JAIME HUMBERTO CECEÑA IMPERIAL",
+                    NumeroNotaria = "143",
+                    DireccionCompleta = "BLVD. JUAN DE DIOS BÁTIZ NO. 86-7 ORIENTE, LOS MOCHIS, SINALOA",
+                    DatosContacto = "Tel: (668) 815 6780 | notario143jc@gmail.com"
+                };
+
+                // 3. LLAMADA CORREGIDA: Ajustada a la nueva firma de PdfService que definimos antes
+                _pdfService.GenerarConstancia(
+                    tempFilePath,
+                    historyItem.TerminoBuscado,
+                    esAprobatoria,
+                    nombresArchivos,
+                    datosDefault
+                );
 
                 var viewer = new PdfViewerWindow(tempFilePath);
                 viewer.Show();
@@ -64,6 +83,5 @@ namespace CertiScan.ViewModels
                 MessageBox.Show($"Error al generar la constancia: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        
     }
 }
