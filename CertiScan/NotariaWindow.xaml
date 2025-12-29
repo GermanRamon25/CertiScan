@@ -1,52 +1,23 @@
 ﻿<Window x:Class="CertiScan.NotariaWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Configuración de la Notaría" Height="500" Width="450"
-        WindowStartupLocation="CenterOwner" Background="#F0F2F5"
-        AllowsTransparency="False" WindowStyle="SingleBorderWindow">
+        Title="Datos de la Notaría" Height="450" Width="400" WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="20">
+        <TextBlock Text="Nombre del Notario:" Margin="0,5"/>
+        <TextBox x:Name="txtNombre" Height="30" Margin="0,0,0,10"/>
 
-    <Border Padding="20">
-        <StackPanel>
-            <TextBlock Text="CONFIGURACIÓN INSTITUCIONAL" FontSize="18" FontWeight="Bold" 
-                       Foreground="#213449" Margin="0,0,0,10" HorizontalAlignment="Center"/>
-            <TextBlock Text="Estos datos aparecerán en todas las constancias generadas." 
-                       FontSize="11" Foreground="Gray" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+        <TextBlock Text="Número de Notaría:" Margin="0,5"/>
+        <TextBox x:Name="txtNumero" Height="30" Margin="0,0,0,10"/>
 
-            <TextBlock Text="Nombre del Notario Titular" FontWeight="SemiBold" Margin="0,5"/>
-            <TextBox x:Name="txtNombre" Height="35" VerticalContentAlignment="Center" Padding="5"/>
+        <TextBlock Text="Dirección:" Margin="0,5"/>
+        <TextBox x:Name="txtDireccion" Height="30" Margin="0,0,0,10"/>
 
-            <TextBlock Text="Número de Notaría" FontWeight="SemiBold" Margin="0,10,0,5"/>
-            <TextBox x:Name="txtNumero" Height="35" VerticalContentAlignment="Center" Padding="5"/>
+        <TextBlock Text="Teléfono:" Margin="0,5"/>
+        <TextBox x:Name="txtTelefono" Height="30" Margin="0,0,0,10"/>
 
-            <TextBlock Text="Dirección de la Notaría" FontWeight="SemiBold" Margin="0,10,0,5"/>
-            <TextBox x:Name="txtDireccion" Height="50" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="5"/>
+        <TextBlock Text="Email de Contacto:" Margin="0,5"/>
+        <TextBox x:Name="txtEmail" Height="30" Margin="0,0,0,20"/>
 
-            <Grid Margin="0,10,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                    <TextBlock Text="Teléfono" FontWeight="SemiBold" Margin="0,5"/>
-                    <TextBox x:Name="txtTelefono" Height="35" VerticalContentAlignment="Center" Padding="5"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                    <TextBlock Text="Correo Electrónico" FontWeight="SemiBold" Margin="0,5"/>
-                    <TextBox x:Name="txtEmail" Height="35" VerticalContentAlignment="Center" Padding="5"/>
-                </StackPanel>
-            </Grid>
-
-            <Button Content="GUARDAR Y SINCRONIZAR" Height="45" Margin="0,30,0,0"
-                    Background="#213449" Foreground="White" FontWeight="Bold"
-                    Click="Guardar_Click">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="5"/>
-                    </Style>
-                </Button.Resources>
-            </Button>
-        </StackPanel>
-    </Border>
+        <Button Content="Guardar y Sincronizar" Click="Guardar_Click" Height="40" Background="#213449" Foreground="White"/>
+    </StackPanel>
 </Window>

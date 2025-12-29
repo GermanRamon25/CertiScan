@@ -1,7 +1,4 @@
-﻿//ESTE CODIGO ES DE DATASERVICE PARA LAS NOTARIAS SE PONDFRA ESTE CODIGO
-
-
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using CertiScan.Models;
@@ -12,6 +9,70 @@ namespace CertiScan.Services
     public class DatabaseService
     {
         private readonly string _connectionString = ConfigurationManager.ConnectionStrings["CertiScanDBConnection"].ConnectionString;
+
+        // ==========================================
+        // NUEVOS MÉTODOS PARA GESTIÓN DE NOTARÍA
+        // ==========================================
+
+        public NotariaInfo ObtenerDatosNotaria(int notariaId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = "SELECT Id, NombreNotario, NumeroNotaria, Direccion, Telefono, Email FROM Notaria WHERE Id = @Id";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Id", notariaId);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new NotariaInfo
+                            {
+                                Id = reader.GetInt32(0),
+                                NombreNotario = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                NumeroNotaria = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Direccion = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                Telefono = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                Email = reader.IsDBNull(5) ? "" : reader.GetString(5)
+                            };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        public bool ActualizarNotaria(NotariaInfo info)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                var query = @"UPDATE Notaria 
+                             SET NombreNotario = @Nombre, 
+                                 NumeroNotaria = @Numero, 
+                                 Direccion = @Direccion, 
+                                 Telefono = @Telefono, 
+                                 Email = @Email 
+                             WHERE Id = @Id";
+
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Nombre", (object)info.NombreNotario ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Numero", (object)info.NumeroNotaria ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Direccion", (object)info.Direccion ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Telefono", (object)info.Telefono ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Email", (object)info.Email ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Id", info.Id);
+
+                    return command.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        // ==========================================
+        // MÉTODOS DE DOCUMENTOS Y BÚSQUEDAS
+        // ==========================================
 
         public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto)
         {
@@ -87,6 +148,10 @@ namespace CertiScan.Services
             }
         }
 
+        // ==========================================
+        // GESTIÓN DE USUARIOS (CORREGIDA)
+        // ==========================================
+
         public bool ValidateUser(string username, string password)
         {
             using (var connection = new SqlConnection(_connectionString))
@@ -108,7 +173,8 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT Id, NombreCompleto, NombreUsuario FROM Usuarios WHERE NombreUsuario = @Username";
+                // CORRECCIÓN: Agregamos NotariaId al SELECT
+                var query = "SELECT Id, NombreCompleto, NombreUsuario, NotariaId FROM Usuarios WHERE NombreUsuario = @Username";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Username", username);
@@ -120,7 +186,8 @@ namespace CertiScan.Services
                             {
                                 Id = reader.GetInt32(0),
                                 NombreCompleto = reader.GetString(1),
-                                NombreUsuario = reader.GetString(2)
+                                NombreUsuario = reader.GetString(2),
+                                NotariaId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
                             };
                         }
                     }
@@ -129,16 +196,12 @@ namespace CertiScan.Services
             return null;
         }
 
-        // --- MÉTODO CORREGIDO ---
         public List<BusquedaHistorial> GetSearchHistory()
         {
             var historial = new List<BusquedaHistorial>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-
-                // === INICIO DE LA CORRECCIÓN ===
-                // Cambiamos b.FechaBusqueda por b.FechaCarga
                 var query = @"
                     SELECT
                         u.NombreUsuario,
@@ -148,7 +211,6 @@ namespace CertiScan.Services
                     FROM Busquedas b
                     JOIN Usuarios u ON b.UsuarioId = u.Id
                     ORDER BY b.FechaCarga DESC";
-                // === FIN DE LA CORRECCIÓN ===
 
                 using (var command = new SqlCommand(query, connection))
                 {
@@ -160,7 +222,7 @@ namespace CertiScan.Services
                             {
                                 NombreUsuario = reader.GetString(0),
                                 TerminoBuscado = reader.GetString(1),
-                                FechaBusqueda = reader.GetDateTime(2), // Esto está bien, lee la columna 3 (índice 2)
+                                FechaBusqueda = reader.GetDateTime(2),
                                 ResultadoEncontrado = reader.GetBoolean(3)
                             });
                         }
@@ -175,7 +237,6 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-
                 var checkUserQuery = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username";
                 using (var checkUserCommand = new SqlCommand(checkUserQuery, connection))
                 {
@@ -183,7 +244,7 @@ namespace CertiScan.Services
                     int userCount = (int)checkUserCommand.ExecuteScalar();
                     if (userCount > 0)
                     {
-                        throw new Exception("El nombre de usuario ya está en uso. Por favor, elige otro.");
+                        throw new Exception("El nombre de usuario ya está en uso.");
                     }
                 }
 
@@ -193,8 +254,7 @@ namespace CertiScan.Services
                     insertCommand.Parameters.AddWithValue("@FullName", fullName);
                     insertCommand.Parameters.AddWithValue("@Username", username);
                     insertCommand.Parameters.AddWithValue("@Password", password);
-                    int rowsAffected = insertCommand.ExecuteNonQuery();
-                    return rowsAffected > 0;
+                    return insertCommand.ExecuteNonQuery() > 0;
                 }
             }
         }
@@ -231,22 +291,15 @@ namespace CertiScan.Services
             {
                 connection.Open();
                 string filePath = null;
-
                 var selectQuery = "SELECT RutaFisica FROM Documentos WHERE Id = @Id";
                 using (var selectCommand = new SqlCommand(selectQuery, connection))
                 {
                     selectCommand.Parameters.AddWithValue("@Id", documentId);
                     var result = selectCommand.ExecuteScalar();
-                    if (result != null)
-                    {
-                        filePath = result.ToString();
-                    }
+                    if (result != null) filePath = result.ToString();
                 }
 
-                if (filePath == null)
-                {
-                    throw new Exception("No se encontró el documento en la base de datos.");
-                }
+                if (filePath == null) throw new Exception("No se encontró el documento.");
 
                 var deleteQuery = "DELETE FROM Documentos WHERE Id = @Id";
                 using (var deleteCommand = new SqlCommand(deleteQuery, connection))
@@ -254,7 +307,6 @@ namespace CertiScan.Services
                     deleteCommand.Parameters.AddWithValue("@Id", documentId);
                     deleteCommand.ExecuteNonQuery();
                 }
-
                 return filePath;
             }
         }

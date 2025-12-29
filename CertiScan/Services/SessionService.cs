@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CertiScan.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,19 +9,20 @@ namespace CertiScan.Services
 {
     public static class SessionService
     {
-        public static int CurrentUserId { get; private set; }
-        public static string CurrentUserName { get; private set; }
+        // Propiedad para guardar el perfil completo del usuario logueado
+        public static CertiScan.Models.Usuario UsuarioLogueado { get; set; }
 
-        public static void Login(int userId, string userName)
+        public static int CurrentUserId => UsuarioLogueado?.Id ?? 0;
+        public static string CurrentUserName => UsuarioLogueado?.NombreUsuario;
+
+        public static void Login(CertiScan.Models.Usuario usuario)
         {
-            CurrentUserId = userId;
-            CurrentUserName = userName;
+            UsuarioLogueado = usuario;
         }
 
         public static void Logout()
         {
-            CurrentUserId = 0;
-            CurrentUserName = null;
+            UsuarioLogueado = null;
         }
     }
 }

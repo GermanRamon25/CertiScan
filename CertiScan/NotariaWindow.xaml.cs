@@ -7,39 +7,37 @@ namespace CertiScan
 {
     public partial class NotariaWindow : Window
     {
+        // Usamos DataService que es el nombre real de tu clase
+        private readonly DatabaseService _dataService = new DatabaseService();
+
         public NotariaWindow()
         {
             InitializeComponent();
-            CargarDatosExistentes();
+            CargarDatos();
         }
 
-        private void CargarDatosExistentes()
+        private void CargarDatos()
         {
-            try
+            // En tu SessionService, el usuario logueado está en 'UsuarioLogueado'
+            if (SessionService.UsuarioLogueado != null)
             {
-                // Obtenemos el ID de la notaría del usuario actual desde la sesión
-                int notariaId = SessionService.UsuarioLogueado.NotariaId;
-
-                // Llamamos al servicio para traer la info de SQL
-                var info = DatabaseService.ObtenerDatosNotaria(notariaId);
-
+                // El método correcto en tu DataService es 'ObtenerDatosNotaria'
+                var info = _dataService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
                 if (info != null)
                 {
                     txtNombre.Text = info.NombreNotario;
                     txtNumero.Text = info.NumeroNotaria;
                     txtDireccion.Text = info.Direccion;
-                    txtTelefono.Text = info.Telefono; // Campo independiente
-                    txtEmail.Text = info.Email;       // Campo independiente
+                    txtTelefono.Text = info.Telefono;
+                    txtEmail.Text = info.Email;
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al cargar datos: " + ex.Message);
             }
         }
 
         private void Guardar_Click(object sender, RoutedEventArgs e)
         {
+            if (SessionService.UsuarioLogueado == null) return;
+
             var info = new NotariaInfo
             {
                 Id = SessionService.UsuarioLogueado.NotariaId,
@@ -50,17 +48,15 @@ namespace CertiScan
                 Email = txtEmail.Text
             };
 
-            // Intentamos actualizar en la base de datos
-            bool exito = DatabaseService.ActualizarNotaria(info);
-
-            if (exito)
+            // El método 'ActualizarNotaria' ya lo tienes en tu DataService
+            if (_dataService.ActualizarNotaria(info))
             {
-                MessageBox.Show("¡Datos actualizados correctamente para todos los usuarios!");
+                MessageBox.Show("Información actualizada para todos los usuarios de la notaría.", "Éxito");
                 this.Close();
             }
             else
             {
-                MessageBox.Show("No se pudieron guardar los cambios.");
+                MessageBox.Show("Error al guardar en la base de datos.", "Error");
             }
         }
     }
