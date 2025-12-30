@@ -45,6 +45,13 @@ namespace CertiScan
             // 3. Cerrar esta ventana principal (MainWindow)
             this.Close();
         }
-        // --- FIN DE LA MODIFICACIÓN ---
+        private void ConfigurarNotaria_Click(object sender, RoutedEventArgs e)
+        {
+            // Esto crea y muestra la ventana que estuvimos programando
+            NotariaWindow ventanaNotaria = new NotariaWindow();
+            ventanaNotaria.Owner = this; // Para que se centre respecto a la principal
+            ventanaNotaria.ShowDialog(); // ShowDialog hace que sea una ventana emergente
+        }
+
     }
 }

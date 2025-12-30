@@ -9,8 +9,8 @@ namespace CertiScan.Services
 {
     public static class SessionService
     {
-        // Propiedad para guardar el perfil completo del usuario logueado
-        public static CertiScan.Models.Usuario UsuarioLogueado { get; set; }
+        // Agregamos esta propiedad para mantener toda la info del notario
+        public static CertiScan.Models.Usuario UsuarioLogueado { get; private set; }
 
         public static int CurrentUserId => UsuarioLogueado?.Id ?? 0;
         public static string CurrentUserName => UsuarioLogueado?.NombreUsuario;
@@ -23,6 +23,16 @@ namespace CertiScan.Services
         public static void Logout()
         {
             UsuarioLogueado = null;
+        }
+
+        internal static void Login(int id, string nombreUsuario)
+        {
+            // En lugar de lanzar la excepción, inicializamos el objeto
+            UsuarioLogueado = new CertiScan.Models.Usuario
+            {
+                Id = id,
+                NombreUsuario = nombreUsuario
+            };
         }
     }
 }

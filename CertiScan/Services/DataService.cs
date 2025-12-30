@@ -43,19 +43,17 @@ namespace CertiScan.Services
             return null;
         }
 
+        // Dentro de DatabaseService en DataService.cs
+
         public bool ActualizarNotaria(NotariaInfo info)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
                 var query = @"UPDATE Notaria 
-                             SET NombreNotario = @Nombre, 
-                                 NumeroNotaria = @Numero, 
-                                 Direccion = @Direccion, 
-                                 Telefono = @Telefono, 
-                                 Email = @Email 
-                             WHERE Id = @Id";
-
+                     SET NombreNotario = @Nombre, NumeroNotaria = @Numero, 
+                         Direccion = @Direccion, Telefono = @Telefono, Email = @Email 
+                     WHERE Id = @Id";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Nombre", (object)info.NombreNotario ?? DBNull.Value);
@@ -64,10 +62,37 @@ namespace CertiScan.Services
                     command.Parameters.AddWithValue("@Telefono", (object)info.Telefono ?? DBNull.Value);
                     command.Parameters.AddWithValue("@Email", (object)info.Email ?? DBNull.Value);
                     command.Parameters.AddWithValue("@Id", info.Id);
-
                     return command.ExecuteNonQuery() > 0;
                 }
             }
+        }
+
+        public Usuario GetUserByUsername(string username)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                // Agregamos NotariaId al SELECT para que no sea siempre 0
+                var query = "SELECT Id, NombreCompleto, NombreUsuario, NotariaId FROM Usuarios WHERE NombreUsuario = @Username";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Username", username);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new Usuario
+                            {
+                                Id = reader.GetInt32(0),
+                                NombreCompleto = reader.GetString(1),
+                                NombreUsuario = reader.GetString(2),
+                                NotariaId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                            };
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         // ==========================================
@@ -168,33 +193,7 @@ namespace CertiScan.Services
             }
         }
 
-        public Usuario GetUserByUsername(string username)
-        {
-            using (var connection = new SqlConnection(_connectionString))
-            {
-                connection.Open();
-                // CORRECCIÓN: Agregamos NotariaId al SELECT
-                var query = "SELECT Id, NombreCompleto, NombreUsuario, NotariaId FROM Usuarios WHERE NombreUsuario = @Username";
-                using (var command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@Username", username);
-                    using (var reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            return new Usuario
-                            {
-                                Id = reader.GetInt32(0),
-                                NombreCompleto = reader.GetString(1),
-                                NombreUsuario = reader.GetString(2),
-                                NotariaId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
-                            };
-                        }
-                    }
-                }
-            }
-            return null;
-        }
+       
 
         public List<BusquedaHistorial> GetSearchHistory()
         {
