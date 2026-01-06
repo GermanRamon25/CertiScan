@@ -36,49 +36,34 @@ namespace CertiScan
 
         private void Guardar_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if (SessionService.UsuarioLogueado == null) return;
+
+            // Validación de teléfono de 10 dígitos
+            string telefono = txtTelefono.Text.Trim();
+            if (telefono.Length != 10 || !long.TryParse(telefono, out _))
             {
-                // 1. Verificación de Sesión
-                if (SessionService.UsuarioLogueado == null)
-                {
-                    MessageBox.Show("Error: No hay una sesión de usuario activa.");
-                    return;
-                }
-
-                // 2. Validación de Teléfono (10 dígitos)
-                string telefono = txtTelefono.Text.Trim();
-                if (telefono.Length != 10 || !long.TryParse(telefono, out _))
-                {
-                    MessageBox.Show("El teléfono debe contener exactamente 10 dígitos numéricos.");
-                    return;
-                }
-
-                // 3. Crear objeto con los datos de los TextBox del XAML
-                var info = new NotariaInfo
-                {
-                    Id = SessionService.UsuarioLogueado.NotariaId,
-                    NombreNotario = txtNombre.Text,
-                    NumeroNotaria = txtNumero.Text,
-                    Direccion = txtDireccion.Text,
-                    Telefono = telefono,
-                    Email = txtEmail.Text
-                };
-
-                // 4. Intento de actualización en DB
-                if (_dataService.ActualizarNotaria(info))
-                {
-                    MessageBox.Show("Datos sincronizados con éxito.", "CertiScan");
-                    this.Close();
-                }
-                else
-                {
-                    MessageBox.Show("No se pudo actualizar. Verifique que el ID de la notaría sea correcto.");
-                }
+                MessageBox.Show("El teléfono debe tener exactamente 10 dígitos.");
+                return;
             }
-            catch (Exception ex)
+
+            var info = new NotariaInfo
             {
-                // Esto te dirá el error real (ej. problema de conexión o de SQL)
-                MessageBox.Show("Error técnico: " + ex.Message);
+                Id = SessionService.UsuarioLogueado.NotariaId,
+                NombreNotario = txtNombre.Text,
+                NumeroNotaria = txtNumero.Text,
+                Direccion = txtDireccion.Text,
+                Telefono = telefono,
+                Email = txtEmail.Text
+            };
+
+            if (_dataService.ActualizarNotaria(info))
+            {
+                MessageBox.Show("Información sincronizada exitosamente.", "Éxito");
+                this.Close();
+            }
+            else
+            {
+                MessageBox.Show("No se encontró el registro de notaría para actualizar.");
             }
         }
     }

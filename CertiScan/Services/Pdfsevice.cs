@@ -57,19 +57,22 @@ namespace CertiScan.Services
             return textoProcesado.ToString();
         }
 
-        // --- MÉTODO ACTUALIZADO: Acepta el objeto 'datos' ---
+        
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados, DatosNotaria datos)
         {
             nombresArchivosEncontrados = nombresArchivosEncontrados ?? new List<string>();
 
-            // Si por alguna razón 'datos' llega nulo, usamos valores por defecto para evitar errores
-            datos = datos ?? new DatosNotaria
+            // Solo si el objeto viene vacío desde el paso anterior usamos el respaldo
+            if (datos == null)
             {
-                NombreNotario = "NO ESPECIFICADO",
-                NumeroNotaria = "0",
-                DireccionCompleta = "SIN DIRECCIÓN",
-                DatosContacto = ""
-            };
+                datos = new DatosNotaria
+                {
+                    NombreNotario = "DATO NO CONFIGURADO",
+                    NumeroNotaria = "0",
+                    DireccionCompleta = "CONFIGURAR EN MENU NOTARIA",
+                    DatosContacto = ""
+                };
+            }
 
             string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "CERTISCAN.LOGO.png");
             byte[] logoData = null;
@@ -178,25 +181,35 @@ namespace CertiScan.Services
             }
         }
 
-        // Sobrecarga para mantener compatibilidad con el resto del sistema si es necesario
-        // En Pdfsevice.cs, cambia la sobrecarga del final por esta:
+
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados)
         {
-            // En lugar de datos fijos, intenta sacarlos de la sesión actual si existen
+            // 1. Verificar que hay un usuario logueado
             if (SessionService.UsuarioLogueado != null)
             {
                 var db = new DatabaseService();
-                var info = db.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+                // 2. Obtener los datos frescos de la base de datos usando el NotariaId de la sesión
+                var infoDB = db.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
 
-                var datos = new DatosNotaria
+                if (infoDB != null)
                 {
-                    NombreNotario = info.NombreNotario,
-                    NumeroNotaria = info.NumeroNotaria,
-                    DireccionCompleta = info.Direccion,
-                    DatosContacto = $"Tel: {info.Telefono} | {info.Email}"
-                };
-                GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, nombresArchivosEncontrados, datos);
+                    // 3. Mapear los datos de la DB al objeto que usa el PDF
+                    var datosParaPdf = new DatosNotaria
+                    {
+                        NombreNotario = infoDB.NombreNotario,
+                        NumeroNotaria = infoDB.NumeroNotaria,
+                        DireccionCompleta = infoDB.Direccion,
+                        DatosContacto = $"Tel: {infoDB.Telefono} | Email: {infoDB.Email}"
+                    };
+
+                    // 4. LLAMADA CRUCIAL: Llamar al primer método pasando el objeto 'datosParaPdf'
+                    GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, nombresArchivosEncontrados, datosParaPdf);
+                    return;
+                }
             }
+
+            // Si falla lo anterior, mostrar un aviso para saber por qué no salen los datos
+            MessageBox.Show("No se pudo recuperar la información de la notaría para el PDF. Verifique la configuración.");
         }
     }
 }

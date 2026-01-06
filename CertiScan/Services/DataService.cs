@@ -50,10 +50,15 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
+                // Asegúrate de que los nombres de las columnas coincidan con tu tabla SQL
                 var query = @"UPDATE Notaria 
-                     SET NombreNotario = @Nombre, NumeroNotaria = @Numero, 
-                         Direccion = @Direccion, Telefono = @Telefono, Email = @Email 
+                     SET NombreNotario = @Nombre, 
+                         NumeroNotaria = @Numero, 
+                         Direccion = @Direccion, 
+                         Telefono = @Telefono, 
+                         Email = @Email 
                      WHERE Id = @Id";
+
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Nombre", (object)info.NombreNotario ?? DBNull.Value);
@@ -61,8 +66,10 @@ namespace CertiScan.Services
                     command.Parameters.AddWithValue("@Direccion", (object)info.Direccion ?? DBNull.Value);
                     command.Parameters.AddWithValue("@Telefono", (object)info.Telefono ?? DBNull.Value);
                     command.Parameters.AddWithValue("@Email", (object)info.Email ?? DBNull.Value);
-                    command.Parameters.AddWithValue("@Id", info.Id);
-                    return command.ExecuteNonQuery() > 0;
+                    command.Parameters.AddWithValue("@Id", info.Id); // Este ID debe existir en la tabla Notaria
+
+                    int filas = command.ExecuteNonQuery();
+                    return filas > 0;
                 }
             }
         }
@@ -240,7 +247,7 @@ namespace CertiScan.Services
 
                 try
                 {
-                    // 1. Crear una Notaría "en blanco" primero para obtener un ID
+                    // 1. Crear la Notaría primero para obtener su ID
                     var insertNotariaQuery = "INSERT INTO Notaria (NombreNotario) OUTPUT INSERTED.Id VALUES ('Nueva Notaría')";
                     int newNotariaId;
                     using (var notariaCommand = new SqlCommand(insertNotariaQuery, connection, transaction))
@@ -248,9 +255,8 @@ namespace CertiScan.Services
                         newNotariaId = (int)notariaCommand.ExecuteScalar();
                     }
 
-                    // 2. Insertar el Usuario usando el NotariaId que acabamos de generar
-                    var insertUserQuery = @"INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password, NotariaId) 
-                                   VALUES (@FullName, @Username, @Password, @NotariaId)";
+                    // 2. Insertar el Usuario vinculado a ese NotariaId
+                    var insertUserQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password, NotariaId) VALUES (@FullName, @Username, @Password, @NotariaId)";
                     using (var userCommand = new SqlCommand(insertUserQuery, connection, transaction))
                     {
                         userCommand.Parameters.AddWithValue("@FullName", fullName);
@@ -263,10 +269,10 @@ namespace CertiScan.Services
                     transaction.Commit();
                     return true;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     transaction.Rollback();
-                    throw new Exception("Error al registrar: " + ex.Message);
+                    throw;
                 }
             }
         }
