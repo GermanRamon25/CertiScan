@@ -36,27 +36,49 @@ namespace CertiScan
 
         private void Guardar_Click(object sender, RoutedEventArgs e)
         {
-            if (SessionService.UsuarioLogueado == null) return;
-
-            var info = new NotariaInfo
+            try
             {
-                Id = SessionService.UsuarioLogueado.NotariaId,
-                NombreNotario = txtNombre.Text,
-                NumeroNotaria = txtNumero.Text,
-                Direccion = txtDireccion.Text,
-                Telefono = txtTelefono.Text,
-                Email = txtEmail.Text
-            };
+                // 1. Verificación de Sesión
+                if (SessionService.UsuarioLogueado == null)
+                {
+                    MessageBox.Show("Error: No hay una sesión de usuario activa.");
+                    return;
+                }
 
-            // El método 'ActualizarNotaria' ya lo tienes en tu DataService
-            if (_dataService.ActualizarNotaria(info))
-            {
-                MessageBox.Show("Información actualizada para todos los usuarios de la notaría.", "Éxito");
-                this.Close();
+                // 2. Validación de Teléfono (10 dígitos)
+                string telefono = txtTelefono.Text.Trim();
+                if (telefono.Length != 10 || !long.TryParse(telefono, out _))
+                {
+                    MessageBox.Show("El teléfono debe contener exactamente 10 dígitos numéricos.");
+                    return;
+                }
+
+                // 3. Crear objeto con los datos de los TextBox del XAML
+                var info = new NotariaInfo
+                {
+                    Id = SessionService.UsuarioLogueado.NotariaId,
+                    NombreNotario = txtNombre.Text,
+                    NumeroNotaria = txtNumero.Text,
+                    Direccion = txtDireccion.Text,
+                    Telefono = telefono,
+                    Email = txtEmail.Text
+                };
+
+                // 4. Intento de actualización en DB
+                if (_dataService.ActualizarNotaria(info))
+                {
+                    MessageBox.Show("Datos sincronizados con éxito.", "CertiScan");
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("No se pudo actualizar. Verifique que el ID de la notaría sea correcto.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Error al guardar en la base de datos.", "Error");
+                // Esto te dirá el error real (ej. problema de conexión o de SQL)
+                MessageBox.Show("Error técnico: " + ex.Message);
             }
         }
     }

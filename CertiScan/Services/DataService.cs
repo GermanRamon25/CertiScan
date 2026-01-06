@@ -236,24 +236,37 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var checkUserQuery = "SELECT COUNT(1) FROM Usuarios WHERE NombreUsuario = @Username";
-                using (var checkUserCommand = new SqlCommand(checkUserQuery, connection))
-                {
-                    checkUserCommand.Parameters.AddWithValue("@Username", username);
-                    int userCount = (int)checkUserCommand.ExecuteScalar();
-                    if (userCount > 0)
-                    {
-                        throw new Exception("El nombre de usuario ya está en uso.");
-                    }
-                }
+                SqlTransaction transaction = connection.BeginTransaction();
 
-                var insertQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password) VALUES (@FullName, @Username, @Password)";
-                using (var insertCommand = new SqlCommand(insertQuery, connection))
+                try
                 {
-                    insertCommand.Parameters.AddWithValue("@FullName", fullName);
-                    insertCommand.Parameters.AddWithValue("@Username", username);
-                    insertCommand.Parameters.AddWithValue("@Password", password);
-                    return insertCommand.ExecuteNonQuery() > 0;
+                    // 1. Crear una Notaría "en blanco" primero para obtener un ID
+                    var insertNotariaQuery = "INSERT INTO Notaria (NombreNotario) OUTPUT INSERTED.Id VALUES ('Nueva Notaría')";
+                    int newNotariaId;
+                    using (var notariaCommand = new SqlCommand(insertNotariaQuery, connection, transaction))
+                    {
+                        newNotariaId = (int)notariaCommand.ExecuteScalar();
+                    }
+
+                    // 2. Insertar el Usuario usando el NotariaId que acabamos de generar
+                    var insertUserQuery = @"INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password, NotariaId) 
+                                   VALUES (@FullName, @Username, @Password, @NotariaId)";
+                    using (var userCommand = new SqlCommand(insertUserQuery, connection, transaction))
+                    {
+                        userCommand.Parameters.AddWithValue("@FullName", fullName);
+                        userCommand.Parameters.AddWithValue("@Username", username);
+                        userCommand.Parameters.AddWithValue("@Password", password);
+                        userCommand.Parameters.AddWithValue("@NotariaId", newNotariaId);
+                        userCommand.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    throw new Exception("Error al registrar: " + ex.Message);
                 }
             }
         }

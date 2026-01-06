@@ -96,13 +96,30 @@ namespace CertiScan
 
             try
             {
-                // Intentamos agregar el usuario a la base de datos
+                // 1. Intentamos agregar el usuario a la base de datos
+                // Asegúrate de que tu AddUser ya incluya la creación de la Notaría como hablamos antes
                 bool success = _databaseService.AddUser(fullName, username, password);
 
                 if (success)
                 {
                     MessageBox.Show("¡Usuario registrado exitosamente!", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
-                    this.Close(); // Cierra la ventana de registro
+
+                    // 2. Recuperamos el objeto usuario completo (con su nuevo NotariaId) para iniciar sesión
+                    var user = _databaseService.GetUserByUsername(username);
+
+                    if (user != null)
+                    {
+                        // 3. Iniciamos la sesión global
+                        SessionService.Login(user);
+
+                        // 4. Abrimos la ventana de Configuración de Notaría directamente
+                        // Esto cumple con tu flujo de que lo primero que hagan sea configurar sus datos
+                        NotariaWindow notariaWin = new NotariaWindow();
+                        notariaWin.Show();
+
+                        // 5. Cerramos la ventana de registro
+                        this.Close();
+                    }
                 }
             }
             catch (Exception ex)

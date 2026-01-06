@@ -42,21 +42,29 @@ namespace CertiScan
             string username = UsernameTextBox.Text;
             string password = PasswordBox.Password;
 
+            // Dentro de LoginButton_Click en LoginWindow.xaml.cs
             if (_databaseService.ValidateUser(username, password))
             {
-                // 1. Traemos al usuario con TODO y su NotariaId desde la BD
                 var user = _databaseService.GetUserByUsername(username);
-
                 if (user != null)
                 {
-                    // 2. IMPORTANTE: Usamos el método que guarda al objeto completo
-                    // NO uses SessionService.Login(user.Id, user.NombreUsuario); 
-                    SessionService.Login(user);
-                }
+                    SessionService.Login(user); // Guarda la sesión
 
-                MainWindow mainWindow = new MainWindow();
-                mainWindow.Show();
-                this.Close();
+                    // Verificar si la notaría está configurada
+                    var notaria = _databaseService.ObtenerDatosNotaria(user.NotariaId);
+                    if (notaria == null || string.IsNullOrEmpty(notaria.NumeroNotaria))
+                    {
+                        MessageBox.Show("Bienvenido. Por favor, configure los datos de su notaría antes de continuar.");
+                        NotariaWindow notariaWin = new NotariaWindow();
+                        notariaWin.Show();
+                    }
+                    else
+                    {
+                        MainWindow mainWindow = new MainWindow();
+                        mainWindow.Show();
+                    }
+                    this.Close();
+                }
             }
         }
 

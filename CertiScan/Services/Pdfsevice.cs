@@ -179,17 +179,24 @@ namespace CertiScan.Services
         }
 
         // Sobrecarga para mantener compatibilidad con el resto del sistema si es necesario
+        // En Pdfsevice.cs, cambia la sobrecarga del final por esta:
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados)
         {
-            // Por defecto, si no se envían datos, se usa la información anterior como respaldo
-            var datosDefault = new DatosNotaria
+            // En lugar de datos fijos, intenta sacarlos de la sesión actual si existen
+            if (SessionService.UsuarioLogueado != null)
             {
-                NombreNotario = "LIC. JAIME HUMBERTO CECEÑA IMPERIAL",
-                NumeroNotaria = "143",
-                DireccionCompleta = "BLVD. JUAN DE DIOS BÁTIZ NO. 86-7 ORIENTE, LOS MOCHIS, SINALOA",
-                DatosContacto = "Tel: (668) 815 6780 | notario143jc@gmail.com"
-            };
-            GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, nombresArchivosEncontrados, datosDefault);
+                var db = new DatabaseService();
+                var info = db.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+
+                var datos = new DatosNotaria
+                {
+                    NombreNotario = info.NombreNotario,
+                    NumeroNotaria = info.NumeroNotaria,
+                    DireccionCompleta = info.Direccion,
+                    DatosContacto = $"Tel: {info.Telefono} | {info.Email}"
+                };
+                GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, nombresArchivosEncontrados, datos);
+            }
         }
     }
 }
