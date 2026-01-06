@@ -13,7 +13,7 @@ using System.Collections.Generic;
 
 namespace CertiScan.Services
 {
-    // Nueva clase para transportar los datos manuales del cliente
+    // Clase para transportar los datos de la notaría al documento
     public class DatosNotaria
     {
         public string NombreNotario { get; set; }
@@ -28,6 +28,7 @@ namespace CertiScan.Services
         {
             try
             {
+                // Configuración de licencia comunitaria para QuestPDF
                 QuestPDF.Settings.License = LicenseType.Community;
             }
             catch (Exception ex)
@@ -36,33 +37,42 @@ namespace CertiScan.Services
             }
         }
 
+        // Método para extraer texto de PDFs
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
             var textoProcesado = new StringBuilder();
-            using (PdfDocument document = PdfDocument.Open(rutaArchivo))
+            try
             {
-                foreach (Page page in document.GetPages())
+                using (PdfDocument document = PdfDocument.Open(rutaArchivo))
                 {
-                    var lines = page.GetWords()
-                                    .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 2))
-                                    .OrderByDescending(g => g.Key);
-                    foreach (var line in lines)
+                    foreach (Page page in document.GetPages())
                     {
-                        string lineText = string.Join(" ", line.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text));
-                        textoProcesado.AppendLine(lineText);
+                        var lines = page.GetWords()
+                                        .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 2))
+                                        .OrderByDescending(g => g.Key);
+                        foreach (var line in lines)
+                        {
+                            string lineText = string.Join(" ", line.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text));
+                            textoProcesado.AppendLine(lineText);
+                        }
+                        textoProcesado.AppendLine();
                     }
-                    textoProcesado.AppendLine();
                 }
+            }
+            catch (Exception ex)
+            {
+                return $"Error al extraer texto: {ex.Message}";
             }
             return textoProcesado.ToString();
         }
 
-        
+        // --- MÉTODO 1: EL MOTOR (Genera el diseño del PDF con los datos recibidos) ---
+        // Este método utiliza el objeto 'datos' enviado desde el MainViewModel
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados, DatosNotaria datos)
         {
             nombresArchivosEncontrados = nombresArchivosEncontrados ?? new List<string>();
 
-            // Solo si el objeto viene vacío desde el paso anterior usamos el respaldo
+            // Validación de seguridad por si el objeto datos llega nulo
             if (datos == null)
             {
                 datos = new DatosNotaria
@@ -74,10 +84,11 @@ namespace CertiScan.Services
                 };
             }
 
+            // Carga de Logo
             string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "CERTISCAN.LOGO.png");
             byte[] logoData = null;
             try { if (File.Exists(logoPath)) logoData = File.ReadAllBytes(logoPath); }
-            catch (Exception ex) { MessageBox.Show($"Error al cargar logo: {ex.Message}"); }
+            catch { /* Logo opcional */ }
 
             try
             {
@@ -89,14 +100,14 @@ namespace CertiScan.Services
                         page.Margin(50);
                         page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Helvetica"));
 
-                        // --- Encabezado Dinámico ---
+                        // --- ENCABEZADO DINÁMICO ---
                         page.Header().Column(headerCol =>
                         {
                             headerCol.Item().Row(row =>
                             {
                                 row.RelativeItem().Column(col =>
                                 {
-                                    // USAMOS LOS DATOS INGRESADOS MANUALMENTE
+                                    // Se usan las propiedades del objeto 'datos'
                                     col.Item().Text(datos.NombreNotario.ToUpper()).Bold().FontSize(14);
                                     col.Item().Text($"NOTARIA PUBLICA No. {datos.NumeroNotaria}").FontSize(12);
                                     col.Item().PaddingTop(10).Text(datos.DireccionCompleta).FontSize(9);
@@ -104,13 +115,13 @@ namespace CertiScan.Services
                                 });
                                 if (logoData != null)
                                 {
-                                    row.ConstantItem(40).AlignRight().AlignTop().Image(logoData).FitArea();
+                                    row.ConstantItem(60).AlignRight().AlignTop().Image(logoData).FitArea();
                                 }
                             });
                             headerCol.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                         });
 
-                        // --- Contenido Principal ---
+                        // --- CONTENIDO PRINCIPAL ---
                         page.Content().PaddingVertical(20).Column(col =>
                         {
                             col.Item().Text("UNIDAD DE INTELIGENCIA FINANCIERA").Bold().Underline();
@@ -143,34 +154,29 @@ namespace CertiScan.Services
                                     if (nombresArchivosEncontrados.Any())
                                     {
                                         text.EmptyLine();
-                                        text.Span("Coincidencia en: ").Italic().FontSize(10);
+                                        text.Span("Coincidencia detectada en: ").Italic().FontSize(10);
                                         text.Span(string.Join(", ", nombresArchivosEncontrados)).Italic().FontSize(10).Bold();
                                     }
                                 }
                             });
 
-                            // --- Firma Dinámica ---
-                            col.Item()
-                               .PaddingTop(60)
-                               .AlignCenter()
-                               .Column(signatureCol =>
-                               {
-                                   signatureCol.Spacing(5);
-                                   signatureCol.Item().AlignCenter().Text("Atentamente:");
-                                   signatureCol.Item().PaddingTop(40).AlignCenter().Text("_________________________");
-                                   // USAMOS EL NOMBRE DEL NOTARIO INGRESADO
-                                   signatureCol.Item().AlignCenter().Text(datos.NombreNotario.ToUpper() + ".");
-                                   signatureCol.Item().AlignCenter().Text($"Notario Público No. {datos.NumeroNotaria}");
-                               });
+                            // --- FIRMA DINÁMICA ---
+                            col.Item().PaddingTop(60).AlignCenter().Column(signatureCol =>
+                            {
+                                signatureCol.Spacing(5);
+                                signatureCol.Item().AlignCenter().Text("Atentamente:");
+                                signatureCol.Item().PaddingTop(40).AlignCenter().Text("_________________________");
+                                // Se usan las propiedades del objeto 'datos' para la firma
+                                signatureCol.Item().AlignCenter().Text(datos.NombreNotario.ToUpper() + ".");
+                                signatureCol.Item().AlignCenter().Text($"Notario Público No. {datos.NumeroNotaria}");
+                            });
                         });
 
-                        page.Footer()
-                            .AlignLeft()
-                            .Text(text =>
-                            {
-                                text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-                                text.Span($"© {DateTime.Now.Year} CertiScan | Sistema de Verificación Profesional");
-                            });
+                        page.Footer().AlignLeft().Text(text =>
+                        {
+                            text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
+                            text.Span($"© {DateTime.Now.Year} CertiScan | Sistema de Verificación Profesional");
+                        });
                     });
                 })
                 .GeneratePdf(rutaGuardado);
@@ -181,19 +187,17 @@ namespace CertiScan.Services
             }
         }
 
-
+        // --- MÉTODO 2: EL PUENTE (Opcional, busca en BD si no se pasan datos) ---
+        // Este método busca los datos en la BD usando el NotariaId de la sesión
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados)
         {
-            // 1. Verificar que hay un usuario logueado
             if (SessionService.UsuarioLogueado != null)
             {
                 var db = new DatabaseService();
-                // 2. Obtener los datos frescos de la base de datos usando el NotariaId de la sesión
                 var infoDB = db.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
 
                 if (infoDB != null)
                 {
-                    // 3. Mapear los datos de la DB al objeto que usa el PDF
                     var datosParaPdf = new DatosNotaria
                     {
                         NombreNotario = infoDB.NombreNotario,
@@ -202,14 +206,12 @@ namespace CertiScan.Services
                         DatosContacto = $"Tel: {infoDB.Telefono} | Email: {infoDB.Email}"
                     };
 
-                    // 4. LLAMADA CRUCIAL: Llamar al primer método pasando el objeto 'datosParaPdf'
                     GenerarConstancia(rutaGuardado, terminoBuscado, esAprobatoria, nombresArchivosEncontrados, datosParaPdf);
                     return;
                 }
             }
 
-            // Si falla lo anterior, mostrar un aviso para saber por qué no salen los datos
-            MessageBox.Show("No se pudo recuperar la información de la notaría para el PDF. Verifique la configuración.");
+            MessageBox.Show("No se pudo recuperar la información de la notaría. Verifique su configuración.", "Error de Datos", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 }

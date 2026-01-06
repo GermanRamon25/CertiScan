@@ -51,28 +51,48 @@ namespace CertiScan.ViewModels
                 string tempFilePath = Path.Combine(Path.GetTempPath(), tempFileName);
 
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
-
-                // 1. Necesitamos recuperar la lista de archivos encontrados para esa búsqueda desde la DB
-                // o pasar una lista vacía si el historial no la guarda.
                 List<string> nombresArchivos = new List<string>();
 
-                // 2. IMPORTANTE: Como estamos en Historial, usamos datos por defecto 
-                // o podrías implementar una lógica para recordar qué notario la generó.
-                var datosDefault = new DatosNotaria
-                {
-                    NombreNotario = "LIC. JAIME HUMBERTO CECEÑA IMPERIAL",
-                    NumeroNotaria = "143",
-                    DireccionCompleta = "BLVD. JUAN DE DIOS BÁTIZ NO. 86-7 ORIENTE, LOS MOCHIS, SINALOA",
-                    DatosContacto = "Tel: (668) 815 6780 | notario143jc@gmail.com"
-                };
+                // --- CORRECCIÓN AQUÍ: Recuperar datos reales de la base de datos ---
+                DatosNotaria datosParaPdf = null;
 
-                // 3. LLAMADA CORREGIDA: Ajustada a la nueva firma de PdfService que definimos antes
+                if (SessionService.UsuarioLogueado != null)
+                {
+                    // Buscamos la información de la notaría asociada al usuario actual
+                    var infoDB = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+
+                    if (infoDB != null)
+                    {
+                        datosParaPdf = new DatosNotaria
+                        {
+                            NombreNotario = infoDB.NombreNotario,
+                            NumeroNotaria = infoDB.NumeroNotaria,
+                            DireccionCompleta = infoDB.Direccion,
+                            DatosContacto = $"Tel: {infoDB.Telefono} | Email: {infoDB.Email}"
+                        };
+                    }
+                }
+
+                // Si por alguna razón no se encuentran datos (ej. sesión expirada), 
+                // usamos un objeto de advertencia en lugar de datos falsos
+                if (datosParaPdf == null)
+                {
+                    datosParaPdf = new DatosNotaria
+                    {
+                        NombreNotario = "DATO NO CONFIGURADO",
+                        NumeroNotaria = "0",
+                        DireccionCompleta = "Favor de configurar en el menú Notaría",
+                        DatosContacto = ""
+                    };
+                }
+
+                // LLAMADA CORREGIDA: Usamos 'datosParaPdf' que trae la info real de la DB
                 _pdfService.GenerarConstancia(
                     tempFilePath,
                     historyItem.TerminoBuscado,
                     esAprobatoria,
                     nombresArchivos,
-                    datosDefault
+                    datosParaPdf
                 );
 
                 var viewer = new PdfViewerWindow(tempFilePath);
