@@ -25,14 +25,6 @@ namespace CertiScan.Services
             UsuarioLogueado = null;
         }
 
-        internal static void Login(int id, string nombreUsuario)
-        {
-            // En lugar de lanzar la excepción, inicializamos el objeto
-            UsuarioLogueado = new CertiScan.Models.Usuario
-            {
-                Id = id,
-                NombreUsuario = nombreUsuario
-            };
-        }
+        
     }
 }

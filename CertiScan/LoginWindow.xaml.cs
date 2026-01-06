@@ -39,38 +39,24 @@ namespace CertiScan
 
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            ErrorMessage.Text = "";
             string username = UsernameTextBox.Text;
             string password = PasswordBox.Password;
 
-            try
+            if (_databaseService.ValidateUser(username, password))
             {
-                if (_databaseService.ValidateUser(username, password))
-                {
-                    // === CAMBIO CLAVE AQUÍ ===
-                    // Obtenemos el objeto usuario completo (que ya trae el NotariaId corregido)
-                    var user = _databaseService.GetUserByUsername(username);
+                // 1. Traemos al usuario con TODO y su NotariaId desde la BD
+                var user = _databaseService.GetUserByUsername(username);
 
-                    if (user != null)
-                    {
-                        // Guardamos TODO el objeto en la sesión. 
-                        // Esto soluciona el problema de que "no guarda" en la otra ventana.
-                        SessionService.Login(user);
-                    }
-                    // =========================
-
-                    MainWindow mainWindow = new MainWindow();
-                    mainWindow.Show();
-                    this.Close();
-                }
-                else
+                if (user != null)
                 {
-                    ErrorMessage.Text = "Usuario o contraseña incorrectos.";
+                    // 2. IMPORTANTE: Usamos el método que guarda al objeto completo
+                    // NO uses SessionService.Login(user.Id, user.NombreUsuario); 
+                    SessionService.Login(user);
                 }
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage.Text = $"Error al conectar a la base de datos: {ex.Message}";
+
+                MainWindow mainWindow = new MainWindow();
+                mainWindow.Show();
+                this.Close();
             }
         }
 
