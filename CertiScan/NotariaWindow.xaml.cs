@@ -7,7 +7,6 @@ namespace CertiScan
 {
     public partial class NotariaWindow : Window
     {
-        // Usamos DataService que es el nombre real de tu clase
         private readonly DatabaseService _dataService = new DatabaseService();
 
         public NotariaWindow()
@@ -18,14 +17,15 @@ namespace CertiScan
 
         private void CargarDatos()
         {
-            // En tu SessionService, el usuario logueado está en 'UsuarioLogueado'
             if (SessionService.UsuarioLogueado != null)
             {
-                // El método correcto en tu DataService es 'ObtenerDatosNotaria'
                 var info = _dataService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
                 if (info != null)
                 {
-                    txtNombre.Text = info.NombreNotario;
+                    // CORRECCIÓN: Si el nombre es el de por defecto "Nueva Notaría", 
+                    // lo dejamos vacío para que el usuario escriba su nombre real.
+                    txtNombre.Text = info.NombreNotario == "Nueva Notaría" ? "" : info.NombreNotario;
+
                     txtNumero.Text = info.NumeroNotaria;
                     txtDireccion.Text = info.Direccion;
                     txtTelefono.Text = info.Telefono;
@@ -37,6 +37,13 @@ namespace CertiScan
         private void Guardar_Click(object sender, RoutedEventArgs e)
         {
             if (SessionService.UsuarioLogueado == null) return;
+
+            // Validación de campos obligatorios mínimos
+            if (string.IsNullOrWhiteSpace(txtNombre.Text))
+            {
+                MessageBox.Show("El nombre del notario es obligatorio.");
+                return;
+            }
 
             // Validación de teléfono de 10 dígitos
             string telefono = txtTelefono.Text.Trim();
@@ -58,13 +65,26 @@ namespace CertiScan
 
             if (_dataService.ActualizarNotaria(info))
             {
-                MessageBox.Show("Información sincronizada exitosamente.", "Éxito");
+                MessageBox.Show("Información sincronizada exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // CORRECCIÓN DE FLUJO: 
+                // Abrimos el programa principal automáticamente después de configurar.
+                MainWindow main = new MainWindow();
+                main.Show();
+
+                // Cerramos esta ventana de configuración.
                 this.Close();
             }
             else
             {
                 MessageBox.Show("No se encontró el registro de notaría para actualizar.");
             }
+        }
+
+        private void Cancelar_Click(object sender, RoutedEventArgs e)
+        {
+            // Si el usuario cancela, simplemente cerramos la ventana.
+            this.Close();
         }
     }
 }

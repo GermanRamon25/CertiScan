@@ -10,9 +10,7 @@ using CertiScan.Services;
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Diagnostics;
 using CertiScan.Models;
-using System.Text;
 
 namespace CertiScan.ViewModels
 {
@@ -33,7 +31,9 @@ namespace CertiScan.ViewModels
                 {
                     _nombresArchivosEncontrados.Clear();
                     ResultadoEncontrado = false;
-                    UpdateConstanciaButtonStates();
+
+                    // Bloqueamos los botones cuando el texto cambia (obliga a buscar de nuevo)
+                    UpdateConstanciaButtonStates(busquedaRealizada: false);
 
                     if (string.IsNullOrWhiteSpace(value))
                     {
@@ -57,14 +57,14 @@ namespace CertiScan.ViewModels
             {
                 if (SetProperty(ref _resultadoEncontrado, value))
                 {
-                    UpdateConstanciaButtonStates();
+                    // La actualización de botones ahora se gestiona desde Buscar()
                 }
             }
         }
 
         private List<string> _nombresArchivosEncontrados = new List<string>();
 
-        // --- PROPIEDADES PARA DATOS DE NOTARÍA ---
+        // Propiedades de Notaría
         private string _nombreNotarioInput;
         public string NombreNotarioInput { get => _nombreNotarioInput; set => SetProperty(ref _nombreNotarioInput, value); }
 
@@ -77,15 +77,14 @@ namespace CertiScan.ViewModels
         private string _contactoInput;
         public string ContactoInput { get => _contactoInput; set => SetProperty(ref _contactoInput, value); }
 
-        // --- ESTADOS DE BOTONES ---
-        private bool _isAprobatoriaButtonEnabled = true;
+        private bool _isAprobatoriaButtonEnabled = false; // Desactivado por defecto
         public bool IsAprobatoriaButtonEnabled
         {
             get => _isAprobatoriaButtonEnabled;
             set => SetProperty(ref _isAprobatoriaButtonEnabled, value);
         }
 
-        private bool _isDenegadaButtonEnabled = true;
+        private bool _isDenegadaButtonEnabled = false; // Desactivado por defecto
         public bool IsDenegadaButtonEnabled
         {
             get => _isDenegadaButtonEnabled;
@@ -130,8 +129,6 @@ namespace CertiScan.ViewModels
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
 
             LoadAllDocuments();
-
-            // IMPORTANTE: Cargar datos desde la BD al iniciar el ViewModel
             CargarDatosNotariaDesdeBD();
 
             CargarPdfCommand = new RelayCommand(CargarPdf);
@@ -142,10 +139,11 @@ namespace CertiScan.ViewModels
             RefreshCommand = new RelayCommand(RefreshView);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
-            UpdateConstanciaButtonStates();
+
+            // Asegurar que inician apagados
+            UpdateConstanciaButtonStates(busquedaRealizada: false);
         }
 
-        // Nuevo método para sincronizar los datos de la notaría con la interfaz
         private void CargarDatosNotariaDesdeBD()
         {
             if (SessionService.UsuarioLogueado != null)
@@ -159,6 +157,80 @@ namespace CertiScan.ViewModels
                     ContactoInput = $"Tel: {info.Telefono} | Email: {info.Email}";
                 }
             }
+        }
+
+        private void Buscar()
+        {
+            if (string.IsNullOrWhiteSpace(TerminoBusqueda))
+            {
+                MessageBox.Show("Por favor, ingrese un nombre o término para buscar.", "Campo Vacío", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var resultados = _databaseService.BuscarTermino(TerminoBusqueda);
+            bool encontrado = resultados.Count > 0;
+            _nombresArchivosEncontrados = encontrado ? resultados.Select(d => d.NombreArchivo).ToList() : new List<string>();
+            ResultadoEncontrado = encontrado;
+
+            // Habilitamos los botones solo después de realizar la búsqueda
+            UpdateConstanciaButtonStates(busquedaRealizada: true);
+
+            var ids = new HashSet<int>(resultados.Select(r => r.Id));
+            foreach (var doc in DocumentosMostrados) doc.IsSearchResult = ids.Contains(doc.Id);
+
+            if (SelectedDocumento != null) LoadPdfContent(SelectedDocumento.Id);
+
+            _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado, SessionService.CurrentUserId);
+
+            if (encontrado)
+            {
+                MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\n\nSe han detectado {resultados.Count} coincidencias para '{TerminoBusqueda}' en las listas de búsqueda.",
+                                "Alerta de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show($"Búsqueda finalizada. No se encontraron coincidencias para '{TerminoBusqueda}'.",
+                                "Resultado de Búsqueda", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void UpdateConstanciaButtonStates(bool busquedaRealizada)
+        {
+            if (!busquedaRealizada || string.IsNullOrWhiteSpace(TerminoBusqueda))
+            {
+                IsAprobatoriaButtonEnabled = false;
+                IsDenegadaButtonEnabled = false;
+                return;
+            }
+
+            // Solo se activan según el resultado de la búsqueda
+            IsAprobatoriaButtonEnabled = !ResultadoEncontrado;
+            IsDenegadaButtonEnabled = ResultadoEncontrado;
+        }
+
+        private void ClearSearchHighlights() { foreach (var doc in DocumentosMostrados) doc.IsSearchResult = false; }
+
+        private void GenerarConstancia(bool parametro)
+        {
+            if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
+
+            var infoManual = new DatosNotaria
+            {
+                NombreNotario = string.IsNullOrWhiteSpace(NombreNotarioInput) ? "NOMBRE NO ESPECIFICADO" : NombreNotarioInput,
+                NumeroNotaria = string.IsNullOrWhiteSpace(NumeroNotariaInput) ? "0" : NumeroNotariaInput,
+                DireccionCompleta = string.IsNullOrWhiteSpace(DireccionInput) ? "SIN DIRECCIÓN REGISTRADA" : DireccionInput,
+                DatosContacto = string.IsNullOrWhiteSpace(ContactoInput) ? "" : ContactoInput
+            };
+
+            try
+            {
+                string tempPath = Path.Combine(Path.GetTempPath(), $"Constancia_{TerminoBusqueda.Replace(" ", "_")}.pdf");
+                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, !ResultadoEncontrado, _nombresArchivosEncontrados, infoManual);
+                new PdfViewerWindow(tempPath).Show();
+                RefreshView();
+                CargarDatosNotariaDesdeBD();
+            }
+            catch (Exception ex) { MessageBox.Show("Error PDF: " + ex.Message); }
         }
 
         private bool CanDeletePdf() => SelectedDocumento != null;
@@ -202,56 +274,6 @@ namespace CertiScan.ViewModels
             }
         }
 
-        private void Buscar()
-        {
-            if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-            var resultados = _databaseService.BuscarTermino(TerminoBusqueda);
-            bool encontrado = resultados.Count > 0;
-            _nombresArchivosEncontrados = encontrado ? resultados.Select(d => d.NombreArchivo).ToList() : new List<string>();
-            ResultadoEncontrado = encontrado;
-            var ids = new HashSet<int>(resultados.Select(r => r.Id));
-            foreach (var doc in DocumentosMostrados) doc.IsSearchResult = ids.Contains(doc.Id);
-            if (SelectedDocumento != null) LoadPdfContent(SelectedDocumento.Id);
-            _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado, SessionService.CurrentUserId);
-        }
-
-        private void UpdateConstanciaButtonStates()
-        {
-            bool canGen = !string.IsNullOrWhiteSpace(TerminoBusqueda);
-            IsAprobatoriaButtonEnabled = canGen && !ResultadoEncontrado;
-            IsDenegadaButtonEnabled = canGen && ResultadoEncontrado;
-        }
-
-        private void ClearSearchHighlights() { foreach (var doc in DocumentosMostrados) doc.IsSearchResult = false; }
-
-        private void GenerarConstancia(bool parametro)
-        {
-            if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-
-            // Preparamos los datos capturados (que ahora vienen de la BD o de los TextBox)
-            var infoManual = new DatosNotaria
-            {
-                NombreNotario = string.IsNullOrWhiteSpace(NombreNotarioInput) ? "NOMBRE NO ESPECIFICADO" : NombreNotarioInput,
-                NumeroNotaria = string.IsNullOrWhiteSpace(NumeroNotariaInput) ? "0" : NumeroNotariaInput,
-                DireccionCompleta = string.IsNullOrWhiteSpace(DireccionInput) ? "SIN DIRECCIÓN REGISTRADA" : DireccionInput,
-                DatosContacto = string.IsNullOrWhiteSpace(ContactoInput) ? "" : ContactoInput
-            };
-
-            try
-            {
-                string tempPath = Path.Combine(Path.GetTempPath(), $"Constancia_{TerminoBusqueda.Replace(" ", "_")}.pdf");
-
-                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, !ResultadoEncontrado, _nombresArchivosEncontrados, infoManual);
-
-                new PdfViewerWindow(tempPath).Show();
-                RefreshView();
-
-                // Recargar datos por si hubo cambios manuales
-                CargarDatosNotariaDesdeBD();
-            }
-            catch (Exception ex) { MessageBox.Show("Error PDF: " + ex.Message); }
-        }
-
         private void LoadPdfContent(int docId)
         {
             try { ContenidoDocumento = CreateHighlightedFlowDocument(_databaseService.GetDocumentoContent(docId), TerminoBusqueda); }
@@ -268,7 +290,6 @@ namespace CertiScan.ViewModels
             ContenidoDocumento = new FlowDocument();
         }
 
-        // Métodos de resaltado
         private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
         {
             var flowDoc = new FlowDocument();
@@ -279,28 +300,23 @@ namespace CertiScan.ViewModels
             }
             else
             {
-                AddHighlightedTextToParagraph(p, text, searchTerm);
+                string pattern = Regex.Escape(searchTerm);
+                string[] parts = Regex.Split(text, $"({pattern})", RegexOptions.IgnoreCase);
+
+                foreach (var part in parts)
+                {
+                    if (part.Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    {
+                        p.Inlines.Add(new Run(part) { Background = Brushes.Yellow, FontWeight = FontWeights.Bold });
+                    }
+                    else
+                    {
+                        p.Inlines.Add(new Run(part));
+                    }
+                }
             }
             flowDoc.Blocks.Add(p);
             return flowDoc;
-        }
-
-        private void AddHighlightedTextToParagraph(Paragraph p, string text, string searchTerm)
-        {
-            string pattern = Regex.Escape(searchTerm);
-            string[] parts = Regex.Split(text, $"({pattern})", RegexOptions.IgnoreCase);
-
-            foreach (var part in parts)
-            {
-                if (part.Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
-                {
-                    p.Inlines.Add(new Run(part) { Background = Brushes.Yellow, FontWeight = FontWeights.Bold });
-                }
-                else
-                {
-                    p.Inlines.Add(new Run(part));
-                }
-            }
         }
     }
 }

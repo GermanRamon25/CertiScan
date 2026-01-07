@@ -7,7 +7,7 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="CertiScan | Sistema de Búsqueda UIF"
-        Height="850" Width="1100" 
+        Height="810" Width="1050" 
         WindowStartupLocation="CenterScreen"
         Background="#F0F2F5">
 
@@ -66,7 +66,7 @@
                         <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Background="White" CornerRadius="4">
                             <Grid>
                                 <TextBlock x:Name="PlaceholderText" 
-                                           Text="Escriba aquí..." 
+                                           Text="Nombre o denominación..." 
                                            Foreground="#70757a" 
                                            FontSize="13"
                                            VerticalAlignment="Center" 

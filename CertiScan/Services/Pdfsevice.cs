@@ -13,7 +13,7 @@ using System.Collections.Generic;
 
 namespace CertiScan.Services
 {
-    // Clase para transportar los datos de la notaría al documento
+   
     public class DatosNotaria
     {
         public string NombreNotario { get; set; }
@@ -28,7 +28,7 @@ namespace CertiScan.Services
         {
             try
             {
-                // Configuración de licencia comunitaria para QuestPDF
+                
                 QuestPDF.Settings.License = LicenseType.Community;
             }
             catch (Exception ex)
@@ -37,7 +37,7 @@ namespace CertiScan.Services
             }
         }
 
-        // Método para extraer texto de PDFs
+       
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
             var textoProcesado = new StringBuilder();
@@ -66,13 +66,12 @@ namespace CertiScan.Services
             return textoProcesado.ToString();
         }
 
-        // --- MÉTODO 1: EL MOTOR (Genera el diseño del PDF con los datos recibidos) ---
-        // Este método utiliza el objeto 'datos' enviado desde el MainViewModel
+        
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados, DatosNotaria datos)
         {
             nombresArchivosEncontrados = nombresArchivosEncontrados ?? new List<string>();
 
-            // Validación de seguridad por si el objeto datos llega nulo
+            
             if (datos == null)
             {
                 datos = new DatosNotaria
@@ -132,7 +131,7 @@ namespace CertiScan.Services
                                 text.Justify();
                                 text.Span("Con fundamento en lo dispuesto por el artículo 115 de la Ley de Instituciones de Crédito vigente relativas a la lista de personas bloqueadas y atendiendo a la obligación del suscrito notario impuesta por diversas disposiciones legales tales como el numeral 17, fracción XII, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que el personal de esta notaría a mi cargo con esta fecha ");
                                 text.Span($"{DateTime.Now:dd/MM/yyyy}").Bold();
-                                text.Span(" realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria...");
+                                text.Span(" realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria,  las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:\r\n");
                             });
 
                             col.Item().PaddingTop(25).Text(text => {
@@ -145,12 +144,12 @@ namespace CertiScan.Services
                                 if (esAprobatoria)
                                 {
                                     text.Span("NO").Bold();
-                                    text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero...");
+                                    text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero, crimen organizado o financiamiento al terrorismo.");
                                 }
                                 else
                                 {
                                     text.Span("SI").Bold();
-                                    text.Span(" se encontró dentro del listado...");
+                                    text.Span(" se encontró dentro del listado de personas vinculadas al lavado de dinero, crimen organizado o financiamiento al terrorismo.");
                                     if (nombresArchivosEncontrados.Any())
                                     {
                                         text.EmptyLine();
@@ -158,6 +157,8 @@ namespace CertiScan.Services
                                         text.Span(string.Join(", ", nombresArchivosEncontrados)).Italic().FontSize(10).Bold();
                                     }
                                 }
+
+
                             });
 
                             // --- FIRMA DINÁMICA ---
@@ -187,8 +188,7 @@ namespace CertiScan.Services
             }
         }
 
-        // --- MÉTODO 2: EL PUENTE (Opcional, busca en BD si no se pasan datos) ---
-        // Este método busca los datos en la BD usando el NotariaId de la sesión
+       
         public void GenerarConstancia(string rutaGuardado, string terminoBuscado, bool esAprobatoria, List<string> nombresArchivosEncontrados)
         {
             if (SessionService.UsuarioLogueado != null)

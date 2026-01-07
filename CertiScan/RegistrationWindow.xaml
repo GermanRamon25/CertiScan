@@ -10,7 +10,7 @@
         WindowStyle="None">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryBlack" Color="Black"/>
+        <SolidColorBrush x:Key="PrimaryBlack" Color="#213449"/>
         <SolidColorBrush x:Key="SecondaryGray" Color="#4A4A4A"/>
         <SolidColorBrush x:Key="AccentLightGray" Color="#F0F0F0"/>
         <SolidColorBrush x:Key="TextLight" Color="White"/>
