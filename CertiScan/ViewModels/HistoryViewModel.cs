@@ -34,10 +34,19 @@ namespace CertiScan.ViewModels
         private void LoadHistory()
         {
             Historial.Clear();
-            var historyItems = _databaseService.GetSearchHistory();
-            foreach (var item in historyItems)
+
+            // Usamos TU nombre original: UsuarioLogueado
+            var user = SessionService.UsuarioLogueado;
+
+            if (user != null)
             {
-                Historial.Add(item);
+                // Pasamos los datos al método actualizado
+                var historyItems = _databaseService.GetSearchHistory(user.Id, user.NombreUsuario);
+
+                foreach (var item in historyItems)
+                {
+                    Historial.Add(item);
+                }
             }
         }
 

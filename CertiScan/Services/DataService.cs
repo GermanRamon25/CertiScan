@@ -200,26 +200,41 @@ namespace CertiScan.Services
             }
         }
 
-       
 
-        public List<BusquedaHistorial> GetSearchHistory()
+
+        public List<BusquedaHistorial> GetSearchHistory(int usuarioId, string nombreUsuario)
         {
             var historial = new List<BusquedaHistorial>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = @"
-                    SELECT
-                        u.NombreUsuario,
-                        b.TerminoBuscado,
-                        b.FechaCarga,
-                        b.ResultadoEncontrado
-                    FROM Busquedas b
-                    JOIN Usuarios u ON b.UsuarioId = u.Id
-                    ORDER BY b.FechaCarga DESC";
+
+                // Aquí defines quién es el "Master" que ve todo
+                bool esAdmin = (nombreUsuario.ToLower() == "admin");
+
+                string query = @"
+                SELECT
+                u.NombreUsuario,
+                b.TerminoBuscado,
+                b.FechaCarga,
+                b.ResultadoEncontrado
+                FROM Busquedas b
+                JOIN Usuarios u ON b.UsuarioId = u.Id";
+
+                if (!esAdmin)
+                {
+                    query += " WHERE b.UsuarioId = @UsuarioId";
+                }
+
+                query += " ORDER BY b.FechaCarga DESC";
 
                 using (var command = new SqlCommand(query, connection))
                 {
+                    if (!esAdmin)
+                    {
+                        command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+                    }
+
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
