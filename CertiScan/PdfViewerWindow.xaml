@@ -11,7 +11,7 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryBlack" Color="#1E1E1E"/>
+        <SolidColorBrush x:Key="PrimaryBlack" Color="#213449"/>
         <SolidColorBrush x:Key="SecondaryGray" Color="#4A4A4A"/>
         <SolidColorBrush x:Key="AccentLightGray" Color="#F0F0F0"/>
         <SolidColorBrush x:Key="ControlBackground" Color="White"/>

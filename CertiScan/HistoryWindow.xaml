@@ -1,75 +1,131 @@
 ﻿<Window x:Class="CertiScan.HistoryWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CertiScan"
-        mc:Ignorable="d"
-        Title="Historial de Búsquedas" Height="600" Width="800"
-        WindowStartupLocation="CenterScreen">
+        Title="Historial de Búsquedas" Height="650" Width="900"
+        WindowStartupLocation="CenterScreen"
+        AllowsTransparency="True" 
+        WindowStyle="None"
+        Background="Transparent">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryBlack" Color="#1E1E1E"/>
-        <SolidColorBrush x:Key="SecondaryGray" Color="#4A4A4A"/>
-        <SolidColorBrush x:Key="ControlBackground" Color="White"/>
+        <SolidColorBrush x:Key="PrimaryBlack" Color="#213449"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#4A90E2"/>
+        <SolidColorBrush x:Key="BackgroundGray" Color="#F4F7F9"/>
 
-        <Style x:Key="MainActionButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="{StaticResource PrimaryBlack}"/>
-            <Setter Property="Foreground" Value="{StaticResource ControlBackground}"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="12"/>
+        <DropShadowEffect x:Key="WindowShadow" Color="Black" BlurRadius="15" Direction="270" Opacity="0.3" ShadowDepth="2"/>
+
+        <Style x:Key="RegenerateButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#213449"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="border" 
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="6">
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource SecondaryGray}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#0A0A0A"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#4A90E2"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="10">
-        <DataGrid ItemsSource="{Binding Historial}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  CanUserAddRows="False"
-                  AlternatingRowBackground="#F0F0F0">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaBusqueda, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="1.5*"/>
-                <DataGridTextColumn Header="Usuario" Binding="{Binding NombreUsuario}" Width="1*"/>
-                <DataGridTextColumn Header="Nombre o Denominación" Binding="{Binding TerminoBuscado}" Width="2*"/>
-                <DataGridTextColumn Header="Resultado" Binding="{Binding ResultadoTexto}" Width="1*"/>
+    <Border Background="{StaticResource BackgroundGray}" CornerRadius="15" Margin="15" Effect="{StaticResource WindowShadow}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                <DataGridTemplateColumn Header="Acción" Width="1.2*">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Button Content="Regenerar Constancia"
-                                    Style="{StaticResource MainActionButtonStyle}"
-                                    Command="{Binding DataContext.RegenerateCertificateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    CommandParameter="{Binding}"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-            </DataGrid.Columns>
-        </DataGrid>
-    </Grid>
+            <Border Grid.Row="0" Background="{StaticResource PrimaryBlack}" CornerRadius="15,15,0,0" Padding="20">
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="📋" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="HISTORIAL DE BÚSQUEDAS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Button Content="✕" HorizontalAlignment="Right" Foreground="White" Background="Transparent" 
+                            BorderThickness="0" FontSize="18" Cursor="Hand" Click="Cerrar_Click"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="20">
+                <DataGrid ItemsSource="{Binding Historial}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          Background="White"
+                          BorderThickness="1"
+                          BorderBrush="#DDD"
+                          RowHeight="40"
+                          GridLinesVisibility="None"
+                          HeadersVisibility="Column"
+                          AlternatingRowBackground="#F9F9F9">
+
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#EEE"/>
+                            <Setter Property="Foreground" Value="#333"/>
+                            <Setter Property="Padding" Value="10,8"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                            <Setter Property="BorderBrush" Value="#DDD"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaBusqueda, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
+
+                        <DataGridTemplateColumn Header="Usuario" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding NombreUsuario}" VerticalAlignment="Center" Margin="10,0" Foreground="#666"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTextColumn Header="Término Buscado" Binding="{Binding TerminoBuscado}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Margin" Value="10,0"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTemplateColumn Header="Resultado" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#E8F5E9" CornerRadius="4" Margin="5" Padding="5,2" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding ResultadoTexto}" Foreground="#2E7D32" FontWeight="Bold" FontSize="10"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Acción" Width="160">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Regenerar PDF"
+                                            Margin="5,0"
+                                            Style="{StaticResource RegenerateButtonStyle}"
+                                            Command="{Binding DataContext.RegenerateCertificateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

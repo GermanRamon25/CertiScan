@@ -31,5 +31,10 @@ namespace CertiScan
         {
 
         }
+        // Añade esto dentro de la clase HistoryWindow
+        private void Cerrar_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close(); // Esto cerrará la ventana cuando hagas clic en la X
+        }
     }
 }
