@@ -216,7 +216,7 @@ namespace CertiScan.Services
                 SELECT
                 u.NombreUsuario,
                 b.TerminoBuscado,
-                b.FechaCarga,
+                b.FechaBusqueda,
                 b.ResultadoEncontrado
                 FROM Busquedas b
                 JOIN Usuarios u ON b.UsuarioId = u.Id";
@@ -226,7 +226,7 @@ namespace CertiScan.Services
                     query += " WHERE b.UsuarioId = @UsuarioId";
                 }
 
-                query += " ORDER BY b.FechaCarga DESC";
+                query += " ORDER BY b.FechaBusqueda DESC";
 
                 using (var command = new SqlCommand(query, connection))
                 {
