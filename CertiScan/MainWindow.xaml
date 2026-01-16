@@ -9,6 +9,7 @@
         Title="CertiScan | Sistema de Búsqueda UIF"
         Height="810" Width="1050" 
         WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
         Background="#F0F2F5">
 
     <Window.Resources>
