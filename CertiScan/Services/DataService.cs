@@ -201,7 +201,7 @@ namespace CertiScan.Services
         }
 
 
-
+        //le cambie un valor para que funcione en mi compu pero no afecta en nada 
         public List<BusquedaHistorial> GetSearchHistory(int usuarioId, string nombreUsuario)
         {
             var historial = new List<BusquedaHistorial>();
