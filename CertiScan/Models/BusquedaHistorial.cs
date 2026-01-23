@@ -10,7 +10,7 @@ namespace CertiScan.Models
     {
         public string NombreUsuario { get; set; }
         public string TerminoBuscado { get; set; }
-        public DateTime FechaBusqueda { get; set; }
+        public DateTime FechaCarga { get; set; }
         public bool ResultadoEncontrado { get; set; }
 
         // Propiedad extra para mostrar texto legible ("Encontrado" / "No Encontrado") en la UI

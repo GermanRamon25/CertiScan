@@ -18,6 +18,8 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
+        public string PdfPreviewPath { get; set; }
+
 
         public string NombreUsuarioLogueado { get; }
 
@@ -319,4 +321,5 @@ namespace CertiScan.ViewModels
             return flowDoc;
         }
     }
+
 }

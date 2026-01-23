@@ -216,7 +216,7 @@ namespace CertiScan.Services
                 SELECT
                 u.NombreUsuario,
                 b.TerminoBuscado,
-                b.FechaBusqueda,
+                b.FechaCarga,
                 b.ResultadoEncontrado
                 FROM Busquedas b
                 JOIN Usuarios u ON b.UsuarioId = u.Id";
@@ -226,7 +226,7 @@ namespace CertiScan.Services
                     query += " WHERE b.UsuarioId = @UsuarioId";
                 }
 
-                query += " ORDER BY b.FechaBusqueda DESC";
+                query += " ORDER BY b.FechaCarga DESC";
 
                 using (var command = new SqlCommand(query, connection))
                 {
@@ -243,7 +243,7 @@ namespace CertiScan.Services
                             {
                                 NombreUsuario = reader.GetString(0),
                                 TerminoBuscado = reader.GetString(1),
-                                FechaBusqueda = reader.GetDateTime(2),
+                                FechaCarga = reader.GetDateTime(2),
                                 ResultadoEncontrado = reader.GetBoolean(3)
                             });
                         }
