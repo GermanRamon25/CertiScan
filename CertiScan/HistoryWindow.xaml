@@ -24,21 +24,24 @@
         </Style>
 
         <Style x:Key="RegenerateButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="#213449"/>
+            <Setter Property="Background" Value="#34495E"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Padding" Value="12,6"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="20">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="📄" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                                <Setter TargetName="border" Property="Background" Value="#2C3E50"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -60,7 +63,7 @@
             <Border Grid.Row="0" Background="{StaticResource PrimaryBlack}" CornerRadius="15,15,0,0" Padding="20">
                 <Grid>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="📋" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
                         <TextBlock Text="HISTORIAL DE BÚSQUEDAS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Button Content="✕" HorizontalAlignment="Right" Foreground="White" Background="Transparent" 
@@ -69,7 +72,28 @@
             </Border>
 
             <Grid Grid.Row="1" Margin="20">
-                <DataGrid ItemsSource="{Binding Historial}"
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="White" CornerRadius="8" Margin="0,0,0,15" Padding="10,5">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="🔍" VerticalAlignment="Center" Margin="5,0,10,0" Opacity="0.5"/>
+                        <TextBox Grid.Column="1" 
+                                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                 BorderThickness="0" 
+                                 VerticalAlignment="Center"
+                                 FontSize="14"/>
+                    </Grid>
+                </Border>
+
+                <DataGrid Grid.Row="1" 
+                          ItemsSource="{Binding FilteredHistorial}"
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
                           SelectionUnit="FullRow" 
@@ -80,7 +104,7 @@
                           HeadersVisibility="Column">
 
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaBusqueda, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
+                        <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaCarga, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
                         <DataGridTextColumn Header="Usuario" Binding="{Binding NombreUsuario}" Width="120"/>
                         <DataGridTextColumn Header="Término" Binding="{Binding TerminoBuscado}" Width="*"/>
 
