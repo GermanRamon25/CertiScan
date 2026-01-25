@@ -11,6 +11,8 @@ namespace CertiScan
     public class DocumentoViewModel : ObservableObject
     {
         public Documento Documento { get; }
+        public string RutaArchivo { get; set; }
+
 
         private bool _isSearchResult;
         public bool IsSearchResult

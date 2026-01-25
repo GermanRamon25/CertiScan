@@ -166,7 +166,7 @@
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="#E0E0E0" VerticalAlignment="Stretch"/>
 
             <Border Grid.Column="2" Background="Gray" BorderBrush="#DDDDDD" BorderThickness="1" Margin="5,0,0,0">
-                <wv2:WebView2 x:Name="pdfWebView" Source="{Binding SelectedDocumento.RutaArchivo}"/>
+                <wv2:WebView2 x:Name="webView" Source="{Binding SelectedDocumento.RutaArchivo}"/>
             </Border>
         </Grid>
 
