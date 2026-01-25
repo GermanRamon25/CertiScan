@@ -31,7 +31,7 @@
     
     
     
-    <ApplicationIcon>Imagenes\LOGO_LA.ico</ApplicationIcon><PublishUrl>E:\CERTISCAN_NOTARIAS_PUBLICAS\NOTARIA_PUBLICA_143\</PublishUrl><Install>true</Install><InstallFrom>Disk</InstallFrom><UpdateEnabled>false</UpdateEnabled><UpdateMode>Foreground</UpdateMode><UpdateInterval>7</UpdateInterval><UpdateIntervalUnits>Days</UpdateIntervalUnits><UpdatePeriodically>false</UpdatePeriodically><UpdateRequired>false</UpdateRequired><MapFileExtensions>true</MapFileExtensions><ApplicationRevision>17</ApplicationRevision><ApplicationVersion>1.0.0.%2a</ApplicationVersion><UseApplicationTrust>false</UseApplicationTrust><PublishWizardCompleted>true</PublishWizardCompleted><BootstrapperEnabled>true</BootstrapperEnabled>
+    <ApplicationIcon>Imagenes\LOGO_CS.ico</ApplicationIcon><PublishUrl>E:\CERTISCAN_NOTARIAS_PUBLICAS\NOTARIA_PUBLICA_143\</PublishUrl><Install>true</Install><InstallFrom>Disk</InstallFrom><UpdateEnabled>false</UpdateEnabled><UpdateMode>Foreground</UpdateMode><UpdateInterval>7</UpdateInterval><UpdateIntervalUnits>Days</UpdateIntervalUnits><UpdatePeriodically>false</UpdatePeriodically><UpdateRequired>false</UpdateRequired><MapFileExtensions>true</MapFileExtensions><ApplicationRevision>17</ApplicationRevision><ApplicationVersion>1.0.0.%2a</ApplicationVersion><UseApplicationTrust>false</UseApplicationTrust><PublishWizardCompleted>true</PublishWizardCompleted><BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -411,14 +411,12 @@
     <Resource Include="Imagenes\refresh_icon.png" />
   </ItemGroup>
   
-  <ItemGroup>
-    <Resource Include="Imagenes\LOGO_LA.ico"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Resource>
-  </ItemGroup>
+  
   <ItemGroup>
     
     
   <BootstrapperPackage Include=".NETFramework,Version=v4.7.2"><Visible>False</Visible><ProductName>Microsoft .NET Framework 4.7.2 %28x86 y x64%29</ProductName><Install>true</Install></BootstrapperPackage><BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1"><Visible>False</Visible><ProductName>.NET Framework 3.5 SP1</ProductName><Install>false</Install></BootstrapperPackage></ItemGroup>
-  <ItemGroup><PublishFile Include="SkiaSharp.pdb"><Visible>False</Visible><Group></Group><TargetPath></TargetPath><PublishState>Include</PublishState><IncludeHash>True</IncludeHash><FileType>File</FileType></PublishFile></ItemGroup><ItemGroup><Content Include="Imagenes\CERTISCAN.LOGO.png"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content><Content Include="Imagenes\LOGO_LA.png"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content></ItemGroup>
+  <ItemGroup><PublishFile Include="SkiaSharp.pdb"><Visible>False</Visible><Group></Group><TargetPath></TargetPath><PublishState>Include</PublishState><IncludeHash>True</IncludeHash><FileType>File</FileType></PublishFile></ItemGroup><ItemGroup><Content Include="Imagenes\CERTISCAN.LOGO.png"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content><Resource Include="Imagenes\LOGO_CS.ico"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Resource></ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets" Condition="Exists('..\packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
