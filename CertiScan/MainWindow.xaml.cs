@@ -13,7 +13,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using CertiScan.Services; // <-- AÑADIR ESTE USING
+using CertiScan.Services;
+using Microsoft.Web.WebView2.Core;
+using CertiScan.Models;
+
+
 
 namespace CertiScan
 {
@@ -24,34 +28,59 @@ namespace CertiScan
     {
         public MainWindow()
         {
-            // Inicializa los controles que diseñaste en el XAML.
             InitializeComponent();
 
-            // Conecta la Vista (esta ventana) con el ViewModel (la lógica).
-            DataContext = new MainViewModel();
+            // Conecta la Vista con el ViewModel
+            var viewModel = new MainViewModel();
+            DataContext = viewModel;
+
+            // --- ESCUCHAR CAMBIOS DE SELECCIÓN PARA ACTUALIZAR EL PDF ---
+            viewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == "SelectedDocumento" && viewModel.SelectedDocumento != null)
+                {
+                    ActualizarVisorPdf(viewModel.SelectedDocumento.RutaArchivo);
+                }
+            };
+
+            // Inicializar el motor del navegador
+            InicializarVisor();
         }
 
-        // --- INICIO DE LA MODIFICACIÓN ---
-        // Método para manejar el clic del botón "Salir"
+        private async void InicializarVisor()
+        {
+            try
+            {
+                // Espera a que el motor del navegador interno se cree
+                await webView.EnsureCoreWebView2Async(null);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al inicializar el visor de PDF: " + ex.Message);
+            }
+        }
+
+        private void ActualizarVisorPdf(string ruta)
+        {
+            if (webView != null && webView.CoreWebView2 != null && !string.IsNullOrEmpty(ruta))
+            {
+                webView.CoreWebView2.Navigate(new Uri(ruta).AbsoluteUri);
+            }
+        }
+
         private void LogoutButton_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Limpiar la sesión de usuario
             SessionService.Logout();
-
-            // 2. Crear y mostrar la ventana de Login
             LoginWindow loginWindow = new LoginWindow();
             loginWindow.Show();
-
-            // 3. Cerrar esta ventana principal (MainWindow)
             this.Close();
         }
+
         private void ConfigurarNotaria_Click(object sender, RoutedEventArgs e)
         {
-            // Esto crea y muestra la ventana que estuvimos programando
             NotariaWindow ventanaNotaria = new NotariaWindow();
-            ventanaNotaria.Owner = this; // Para que se centre respecto a la principal
-            ventanaNotaria.ShowDialog(); // ShowDialog hace que sea una ventana emergente
+            ventanaNotaria.Owner = this;
+            ventanaNotaria.ShowDialog();
         }
-
     }
 }

@@ -11,15 +11,21 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using CertiScan.Models;
-
+using CertiScan.ViewModels;
 namespace CertiScan.ViewModels
 {
     public class MainViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
-        public string PdfPreviewPath { get; set; }
 
+        // Propiedad para que el WebView2 sepa qué archivo cargar
+        private string _rutaPdfActual;
+        public string RutaPdfActual
+        {
+            get => _rutaPdfActual;
+            set => SetProperty(ref _rutaPdfActual, value);
+        }
 
         public string NombreUsuarioLogueado { get; }
 
@@ -33,8 +39,6 @@ namespace CertiScan.ViewModels
                 {
                     _nombresArchivosEncontrados.Clear();
                     ResultadoEncontrado = false;
-
-                    // Bloqueamos los botones cuando el texto cambia (obliga a buscar de nuevo)
                     UpdateConstanciaButtonStates(busquedaRealizada: false);
 
                     if (string.IsNullOrWhiteSpace(value))
@@ -55,13 +59,7 @@ namespace CertiScan.ViewModels
         public bool ResultadoEncontrado
         {
             get => _resultadoEncontrado;
-            set
-            {
-                if (SetProperty(ref _resultadoEncontrado, value))
-                {
-                    // La actualización de botones ahora se gestiona desde Buscar()
-                }
-            }
+            set => SetProperty(ref _resultadoEncontrado, value);
         }
 
         private List<string> _nombresArchivosEncontrados = new List<string>();
@@ -79,19 +77,11 @@ namespace CertiScan.ViewModels
         private string _contactoInput;
         public string ContactoInput { get => _contactoInput; set => SetProperty(ref _contactoInput, value); }
 
-        private bool _isAprobatoriaButtonEnabled = false; // Desactivado por defecto
-        public bool IsAprobatoriaButtonEnabled
-        {
-            get => _isAprobatoriaButtonEnabled;
-            set => SetProperty(ref _isAprobatoriaButtonEnabled, value);
-        }
+        private bool _isAprobatoriaButtonEnabled = false;
+        public bool IsAprobatoriaButtonEnabled { get => _isAprobatoriaButtonEnabled; set => SetProperty(ref _isAprobatoriaButtonEnabled, value); }
 
-        private bool _isDenegadaButtonEnabled = false; // Desactivado por defecto
-        public bool IsDenegadaButtonEnabled
-        {
-            get => _isDenegadaButtonEnabled;
-            set => SetProperty(ref _isDenegadaButtonEnabled, value);
-        }
+        private bool _isDenegadaButtonEnabled = false;
+        public bool IsDenegadaButtonEnabled { get => _isDenegadaButtonEnabled; set => SetProperty(ref _isDenegadaButtonEnabled, value); }
 
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
 
@@ -103,19 +93,24 @@ namespace CertiScan.ViewModels
             {
                 if (SetProperty(ref _selectedDocumento, value))
                 {
-                    if (value != null) LoadPdfContent(value.Id);
-                    else ContenidoDocumento = new FlowDocument();
+                    if (value != null)
+                    {
+                        LoadPdfContent(value.Id);
+                        
+                        RutaPdfActual = value.RutaArchivo;
+                    }
+                    else
+                    {
+                        ContenidoDocumento = new FlowDocument();
+                        RutaPdfActual = null;
+                    }
                 }
                 DeletePdfCommand.NotifyCanExecuteChanged();
             }
         }
 
         private FlowDocument _contenidoDocumento;
-        public FlowDocument ContenidoDocumento
-        {
-            get => _contenidoDocumento;
-            set => SetProperty(ref _contenidoDocumento, value);
-        }
+        public FlowDocument ContenidoDocumento { get => _contenidoDocumento; set => SetProperty(ref _contenidoDocumento, value); }
 
         public IRelayCommand CargarPdfCommand { get; }
         public IRelayCommand BuscarCommand { get; }
@@ -141,8 +136,6 @@ namespace CertiScan.ViewModels
             RefreshCommand = new RelayCommand(RefreshView);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
-
-            // Asegurar que inician apagados
             UpdateConstanciaButtonStates(busquedaRealizada: false);
         }
 
@@ -174,7 +167,6 @@ namespace CertiScan.ViewModels
             _nombresArchivosEncontrados = encontrado ? resultados.Select(d => d.NombreArchivo).ToList() : new List<string>();
             ResultadoEncontrado = encontrado;
 
-            // Habilitamos los botones solo después de realizar la búsqueda
             UpdateConstanciaButtonStates(busquedaRealizada: true);
 
             var ids = new HashSet<int>(resultados.Select(r => r.Id));
@@ -186,13 +178,11 @@ namespace CertiScan.ViewModels
 
             if (encontrado)
             {
-                MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\n\nSe han detectado {resultados.Count} coincidencias para '{TerminoBusqueda}' en las listas de búsqueda.",
-                                "Alerta de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\n\nSe han detectado {resultados.Count} coincidencias para '{TerminoBusqueda}'.", "Alerta de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
-                MessageBox.Show($"Búsqueda finalizada. No se encontraron coincidencias para '{TerminoBusqueda}'.",
-                                "Resultado de Búsqueda", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Búsqueda finalizada. No se encontraron coincidencias para '{TerminoBusqueda}'.", "Resultado de Búsqueda", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -204,8 +194,6 @@ namespace CertiScan.ViewModels
                 IsDenegadaButtonEnabled = false;
                 return;
             }
-
-            // Solo se activan según el resultado de la búsqueda
             IsAprobatoriaButtonEnabled = !ResultadoEncontrado;
             IsDenegadaButtonEnabled = ResultadoEncontrado;
         }
@@ -250,10 +238,17 @@ namespace CertiScan.ViewModels
             }
         }
 
+        // Dentro de MainViewModel.cs, modifica el método LoadAllDocuments
         private void LoadAllDocuments()
         {
             DocumentosMostrados.Clear();
-            foreach (var doc in _databaseService.GetAllDocuments()) DocumentosMostrados.Add(new DocumentoViewModel(doc));
+            var documentosBase = _databaseService.GetAllDocuments();
+
+            foreach (var doc in documentosBase)
+            {
+                // Convertimos el modelo simple al ViewModel que entiende la interfaz
+                DocumentosMostrados.Add(new DocumentoViewModel(doc));
+            }
         }
 
         private void CargarPdf()
@@ -290,6 +285,7 @@ namespace CertiScan.ViewModels
             SelectedDocumento = null;
             LoadAllDocuments();
             ContenidoDocumento = new FlowDocument();
+            RutaPdfActual = null;
         }
 
         private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
@@ -321,5 +317,4 @@ namespace CertiScan.ViewModels
             return flowDoc;
         }
     }
-
 }

@@ -345,7 +345,7 @@
     
     
     <Compile Include="Services\Pdfsevice.cs"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Compile>
-    <Compile Include="Services\SessionService.cs" />
+    <Compile Include="Services\SessionService.cs" /><Compile Include="ViewModels\DocumentoViewModel.cs" />
     <Compile Include="ViewModels\HistoryViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Page Include="HistoryWindow.xaml">
