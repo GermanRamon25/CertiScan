@@ -5,7 +5,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CertiScan"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
-        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
         Title="CertiScan | Sistema de Búsqueda UIF"
         Height="810" Width="1200" 
@@ -165,8 +164,35 @@
 
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="#E0E0E0" VerticalAlignment="Stretch"/>
 
-            <Border Grid.Column="2" Background="Gray" BorderBrush="#DDDDDD" BorderThickness="1" Margin="5,0,0,0">
-                <wv2:WebView2 x:Name="webView" Source="{Binding SelectedDocumento.RutaArchivo}"/>
+            <Border Grid.Column="2" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Margin="5,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SelectedDocumento.NombreArchivo}" 
+                                   FontSize="20" FontWeight="Bold" Foreground="#213449" Margin="0,0,0,10"/>
+                        <Separator Margin="0,0,0,20" Background="#E0E0E0"/>
+
+                        <TextBlock Text="{Binding SelectedDocumento.ContenidoTexto}" 
+                                   TextWrapping="Wrap" 
+                                   FontSize="15" 
+                                   LineHeight="24"
+                                   FontFamily="Segoe UI"
+                                   Foreground="#333333"/>
+
+                        <TextBlock Text="Seleccione un documento para visualizar la información." 
+                                   Foreground="DarkGray" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,150,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedDocumento}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 

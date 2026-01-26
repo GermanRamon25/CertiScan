@@ -29,7 +29,7 @@ namespace CertiScan
 
                 // 2. Mover la lógica de carga aquí
                 webView.NavigationCompleted += WebView_NavigationCompleted;
-                webView.Source = new Uri(pdfPath);
+                webView.CoreWebView2.Navigate(new Uri(pdfPath).AbsoluteUri);
             }
             catch (Exception ex)
             {
@@ -100,4 +100,5 @@ namespace CertiScan
             }
         }
     }
+
 }
