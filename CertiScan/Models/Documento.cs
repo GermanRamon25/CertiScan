@@ -12,7 +12,6 @@ namespace CertiScan.Models
         public string NombreArchivo { get; set; }
         public DateTime FechaCarga { get; set; }
 
-        // Esta propiedad es la que usará el visor para mostrar el PDF
         public string RutaArchivo { get; set; }
     }
 }
