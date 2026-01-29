@@ -95,8 +95,8 @@ namespace CertiScan.ViewModels
                 {
                     if (value != null)
                     {
+                       
                         LoadPdfContent(value.Id);
-                        
                         RutaPdfActual = value.RutaArchivo;
                     }
                     else
@@ -105,7 +105,6 @@ namespace CertiScan.ViewModels
                         RutaPdfActual = null;
                     }
                 }
-                DeletePdfCommand.NotifyCanExecuteChanged();
             }
         }
 
