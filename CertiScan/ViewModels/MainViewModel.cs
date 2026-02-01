@@ -4,14 +4,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
-using System.Windows.Documents;
 using System.Windows.Media;
 using CertiScan.Services;
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using CertiScan.Models;
-using CertiScan.ViewModels;
+
 namespace CertiScan.ViewModels
 {
     public class MainViewModel : ObservableObject
@@ -19,7 +18,6 @@ namespace CertiScan.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
 
-        // Propiedad para que el WebView2 sepa qué archivo cargar
         private string _rutaPdfActual;
         public string RutaPdfActual
         {
@@ -41,13 +39,7 @@ namespace CertiScan.ViewModels
                     ResultadoEncontrado = false;
                     UpdateConstanciaButtonStates(busquedaRealizada: false);
 
-                    if (string.IsNullOrWhiteSpace(value))
-                    {
-                        ClearSearchHighlights();
-                        if (SelectedDocumento != null)
-                            LoadPdfContent(SelectedDocumento.Id);
-                    }
-                    else if (SelectedDocumento != null)
+                    if (SelectedDocumento != null)
                     {
                         LoadPdfContent(SelectedDocumento.Id);
                     }
@@ -65,17 +57,10 @@ namespace CertiScan.ViewModels
         private List<string> _nombresArchivosEncontrados = new List<string>();
 
         // Propiedades de Notaría
-        private string _nombreNotarioInput;
-        public string NombreNotarioInput { get => _nombreNotarioInput; set => SetProperty(ref _nombreNotarioInput, value); }
-
-        private string _numeroNotariaInput;
-        public string NumeroNotariaInput { get => _numeroNotariaInput; set => SetProperty(ref _numeroNotariaInput, value); }
-
-        private string _direccionInput;
-        public string DireccionInput { get => _direccionInput; set => SetProperty(ref _direccionInput, value); }
-
-        private string _contactoInput;
-        public string ContactoInput { get => _contactoInput; set => SetProperty(ref _contactoInput, value); }
+        public string NombreNotarioInput { get; set; }
+        public string NumeroNotariaInput { get; set; }
+        public string DireccionInput { get; set; }
+        public string ContactoInput { get; set; }
 
         private bool _isAprobatoriaButtonEnabled = false;
         public bool IsAprobatoriaButtonEnabled { get => _isAprobatoriaButtonEnabled; set => SetProperty(ref _isAprobatoriaButtonEnabled, value); }
@@ -95,21 +80,25 @@ namespace CertiScan.ViewModels
                 {
                     if (value != null)
                     {
-                       
                         LoadPdfContent(value.Id);
                         RutaPdfActual = value.RutaArchivo;
                     }
                     else
                     {
-                        ContenidoDocumento = new FlowDocument();
+                        ContenidoDocumento = string.Empty; // Limpiamos el texto
                         RutaPdfActual = null;
                     }
                 }
             }
         }
 
-        private FlowDocument _contenidoDocumento;
-        public FlowDocument ContenidoDocumento { get => _contenidoDocumento; set => SetProperty(ref _contenidoDocumento, value); }
+        // CAMBIO CLAVE: Cambiado de FlowDocument a string
+        private string _contenidoDocumento;
+        public string ContenidoDocumento
+        {
+            get => _contenidoDocumento;
+            set => SetProperty(ref _contenidoDocumento, value);
+        }
 
         public IRelayCommand CargarPdfCommand { get; }
         public IRelayCommand BuscarCommand { get; }
@@ -157,7 +146,7 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda))
             {
-                MessageBox.Show("Por favor, ingrese un nombre o término para buscar.", "Campo Vacío", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Por favor, ingrese un nombre para buscar.", "Campo Vacío", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -176,13 +165,9 @@ namespace CertiScan.ViewModels
             _databaseService.RegistrarBusqueda(TerminoBusqueda, encontrado, SessionService.CurrentUserId);
 
             if (encontrado)
-            {
-                MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\n\nSe han detectado {resultados.Count} coincidencias para '{TerminoBusqueda}'.", "Alerta de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+                MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!", "Alerta", MessageBoxButton.OK, MessageBoxImage.Warning);
             else
-            {
-                MessageBox.Show($"Búsqueda finalizada. No se encontraron coincidencias para '{TerminoBusqueda}'.", "Resultado de Búsqueda", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+                MessageBox.Show($"No se encontraron coincidencias.", "Resultado", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void UpdateConstanciaButtonStates(bool busquedaRealizada)
@@ -197,8 +182,6 @@ namespace CertiScan.ViewModels
             IsDenegadaButtonEnabled = ResultadoEncontrado;
         }
 
-        private void ClearSearchHighlights() { foreach (var doc in DocumentosMostrados) doc.IsSearchResult = false; }
-
         private void GenerarConstancia(bool parametro)
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
@@ -207,7 +190,7 @@ namespace CertiScan.ViewModels
             {
                 NombreNotario = string.IsNullOrWhiteSpace(NombreNotarioInput) ? "NOMBRE NO ESPECIFICADO" : NombreNotarioInput,
                 NumeroNotaria = string.IsNullOrWhiteSpace(NumeroNotariaInput) ? "0" : NumeroNotariaInput,
-                DireccionCompleta = string.IsNullOrWhiteSpace(DireccionInput) ? "SIN DIRECCIÓN REGISTRADA" : DireccionInput,
+                DireccionCompleta = string.IsNullOrWhiteSpace(DireccionInput) ? "SIN DIRECCIÓN" : DireccionInput,
                 DatosContacto = string.IsNullOrWhiteSpace(ContactoInput) ? "" : ContactoInput
             };
 
@@ -216,10 +199,8 @@ namespace CertiScan.ViewModels
                 string tempPath = Path.Combine(Path.GetTempPath(), $"Constancia_{TerminoBusqueda.Replace(" ", "_")}.pdf");
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, !ResultadoEncontrado, _nombresArchivosEncontrados, infoManual);
                 new PdfViewerWindow(tempPath).Show();
-                RefreshView();
-                CargarDatosNotariaDesdeBD();
             }
-            catch (Exception ex) { MessageBox.Show("Error PDF: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
         private bool CanDeletePdf() => SelectedDocumento != null;
@@ -227,27 +208,19 @@ namespace CertiScan.ViewModels
         private void DeletePdf()
         {
             if (!CanDeletePdf()) return;
-            var result = MessageBox.Show($"¿Estás seguro de que quieres eliminar '{SelectedDocumento.NombreArchivo}'?", "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (result == MessageBoxResult.Yes)
+            if (MessageBox.Show($"¿Eliminar '{SelectedDocumento.NombreArchivo}'?", "Confirmar", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
             {
-                string filePath = _databaseService.DeleteDocument(SelectedDocumento.Id);
-                if (File.Exists(filePath)) File.Delete(filePath);
+                _databaseService.DeleteDocument(SelectedDocumento.Id);
                 DocumentosMostrados.Remove(SelectedDocumento);
                 SelectedDocumento = null;
             }
         }
 
-        // Dentro de MainViewModel.cs, modifica el método LoadAllDocuments
         private void LoadAllDocuments()
         {
             DocumentosMostrados.Clear();
             var documentosBase = _databaseService.GetAllDocuments();
-
-            foreach (var doc in documentosBase)
-            {
-                // Convertimos el modelo simple al ViewModel que entiende la interfaz
-                DocumentosMostrados.Add(new DocumentoViewModel(doc));
-            }
+            foreach (var doc in documentosBase) DocumentosMostrados.Add(new DocumentoViewModel(doc));
         }
 
         private void CargarPdf()
@@ -257,23 +230,23 @@ namespace CertiScan.ViewModels
             {
                 foreach (string ruta in openFileDialog.FileNames)
                 {
-                    try
-                    {
-                        string destino = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DocumentosAlmacenados", Path.GetFileName(ruta));
-                        Directory.CreateDirectory(Path.GetDirectoryName(destino));
-                        File.Copy(ruta, destino, true);
-                        _databaseService.GuardarDocumento(Path.GetFileName(ruta), destino, _pdfService.ExtraerTextoDePdf(destino));
-                    }
-                    catch (Exception ex) { MessageBox.Show("Error al cargar: " + ex.Message); }
+                    string destino = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DocumentosAlmacenados", Path.GetFileName(ruta));
+                    Directory.CreateDirectory(Path.GetDirectoryName(destino));
+                    File.Copy(ruta, destino, true);
+                    _databaseService.GuardarDocumento(Path.GetFileName(ruta), destino, _pdfService.ExtraerTextoDePdf(destino));
                 }
-                RefreshView();
+                LoadAllDocuments();
             }
         }
 
         private void LoadPdfContent(int docId)
         {
-            try { ContenidoDocumento = CreateHighlightedFlowDocument(_databaseService.GetDocumentoContent(docId), TerminoBusqueda); }
-            catch { ContenidoDocumento = new FlowDocument(); }
+            try
+            {
+                // Cargamos el texto plano directamente
+                ContenidoDocumento = _databaseService.GetDocumentoContent(docId);
+            }
+            catch { ContenidoDocumento = string.Empty; }
         }
 
         private void ShowHistory() => new HistoryWindow().Show();
@@ -283,37 +256,8 @@ namespace CertiScan.ViewModels
             TerminoBusqueda = string.Empty;
             SelectedDocumento = null;
             LoadAllDocuments();
-            ContenidoDocumento = new FlowDocument();
+            ContenidoDocumento = string.Empty;
             RutaPdfActual = null;
-        }
-
-        private FlowDocument CreateHighlightedFlowDocument(string text, string searchTerm)
-        {
-            var flowDoc = new FlowDocument();
-            var p = new Paragraph();
-            if (string.IsNullOrWhiteSpace(searchTerm))
-            {
-                p.Inlines.Add(new Run(text));
-            }
-            else
-            {
-                string pattern = Regex.Escape(searchTerm);
-                string[] parts = Regex.Split(text, $"({pattern})", RegexOptions.IgnoreCase);
-
-                foreach (var part in parts)
-                {
-                    if (part.Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
-                    {
-                        p.Inlines.Add(new Run(part) { Background = Brushes.Yellow, FontWeight = FontWeights.Bold });
-                    }
-                    else
-                    {
-                        p.Inlines.Add(new Run(part));
-                    }
-                }
-            }
-            flowDoc.Blocks.Add(p);
-            return flowDoc;
         }
     }
 }

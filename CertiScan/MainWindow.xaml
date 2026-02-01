@@ -165,34 +165,48 @@
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="#E0E0E0" VerticalAlignment="Stretch"/>
 
             <Border Grid.Column="2" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Margin="5,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25">
-                    <StackPanel>
-                        <TextBlock Text="{Binding SelectedDocumento.NombreArchivo}" 
-                                   FontSize="20" FontWeight="Bold" Foreground="#213449" Margin="0,0,0,10"/>
-                        <Separator Margin="0,0,0,20" Background="#E0E0E0"/>
+                <Grid>
+                    <TextBlock Text="Seleccione un documento para visualizar la información." 
+                               Foreground="DarkGray" FontStyle="Italic" 
+                               HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedDocumento}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
 
-                        <TextBlock Text="{Binding SelectedDocumento.ContenidoDocumento}" 
-                                   TextWrapping="Wrap" 
-                                   FontSize="15" 
-                                   LineHeight="24"
-                                   FontFamily="Segoe UI"
-                                   Foreground="#333333"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="25">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedDocumento}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
 
-                        <TextBlock Text="Seleccione un documento para visualizar la información." 
-                                   Foreground="DarkGray" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,150,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedDocumento}" Value="{x:Null}">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </StackPanel>
-                </ScrollViewer>
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedDocumento.NombreArchivo}" 
+                                       FontSize="20" FontWeight="Bold" Foreground="#213449" Margin="0,0,0,10"/>
+                            <Separator Margin="0,0,0,20" Background="#E0E0E0"/>
+
+                            <TextBlock Text="{Binding SelectedDocumento.ContenidoDocumento}" 
+                                       TextWrapping="Wrap" 
+                                       FontSize="15" 
+                                       LineHeight="24"
+                                       FontFamily="Segoe UI"
+                                       Foreground="#333333"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
 
