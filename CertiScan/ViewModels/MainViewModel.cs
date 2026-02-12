@@ -85,14 +85,13 @@ namespace CertiScan.ViewModels
                     }
                     else
                     {
-                        ContenidoDocumento = string.Empty; // Limpiamos el texto
+                        ContenidoDocumento = string.Empty;
                         RutaPdfActual = null;
                     }
                 }
             }
         }
 
-        // CAMBIO CLAVE: Cambiado de FlowDocument a string
         private string _contenidoDocumento;
         public string ContenidoDocumento
         {
@@ -150,7 +149,8 @@ namespace CertiScan.ViewModels
                 return;
             }
 
-            var resultados = _databaseService.BuscarTermino(TerminoBusqueda);
+            // CORRECCIÓN: Ahora busca solo en los documentos del usuario logueado
+            var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId);
             bool encontrado = resultados.Count > 0;
             _nombresArchivosEncontrados = encontrado ? resultados.Select(d => d.NombreArchivo).ToList() : new List<string>();
             ResultadoEncontrado = encontrado;
@@ -219,7 +219,8 @@ namespace CertiScan.ViewModels
         private void LoadAllDocuments()
         {
             DocumentosMostrados.Clear();
-            var documentosBase = _databaseService.GetAllDocuments();
+            // CORRECCIÓN: Carga solo los documentos pertenecientes al usuario actual
+            var documentosBase = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId);
             foreach (var doc in documentosBase) DocumentosMostrados.Add(new DocumentoViewModel(doc));
         }
 
@@ -233,7 +234,14 @@ namespace CertiScan.ViewModels
                     string destino = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DocumentosAlmacenados", Path.GetFileName(ruta));
                     Directory.CreateDirectory(Path.GetDirectoryName(destino));
                     File.Copy(ruta, destino, true);
-                    _databaseService.GuardarDocumento(Path.GetFileName(ruta), destino, _pdfService.ExtraerTextoDePdf(destino));
+
+                    // CORRECCIÓN: Se envía el ID del usuario al guardar el documento
+                    _databaseService.GuardarDocumento(
+                        Path.GetFileName(ruta),
+                        destino,
+                        _pdfService.ExtraerTextoDePdf(destino),
+                        SessionService.CurrentUserId
+                    );
                 }
                 LoadAllDocuments();
             }
@@ -243,7 +251,6 @@ namespace CertiScan.ViewModels
         {
             try
             {
-                // Cargamos el texto plano directamente
                 ContenidoDocumento = _databaseService.GetDocumentoContent(docId);
             }
             catch { ContenidoDocumento = string.Empty; }
