@@ -109,7 +109,7 @@
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="30,20,30,20">
-                    <TextBlock Text="Nombre del Notario" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBlack}" Margin="2,0,0,5"/>
+                    <TextBlock Text="Nombre Completo" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBlack}" Margin="2,0,0,5"/>
                     <TextBox x:Name="txtNombre" Style="{StaticResource InputStyleNotaria}" Margin="0,0,0,15"/>
 
                     <TextBlock Text="Número de Notaría" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBlack}" Margin="2,0,0,5"/>

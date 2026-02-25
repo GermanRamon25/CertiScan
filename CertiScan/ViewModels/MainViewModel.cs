@@ -88,6 +88,9 @@ namespace CertiScan.ViewModels
                         ContenidoDocumento = string.Empty;
                         RutaPdfActual = null;
                     }
+
+                    // CORRECCIÓN: Notifica al botón de eliminar que el estado de selección ha cambiado
+                    DeletePdfCommand?.NotifyCanExecuteChanged();
                 }
             }
         }
@@ -149,7 +152,6 @@ namespace CertiScan.ViewModels
                 return;
             }
 
-            // CORRECCIÓN: Ahora busca solo en los documentos del usuario logueado
             var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId);
             bool encontrado = resultados.Count > 0;
             _nombresArchivosEncontrados = encontrado ? resultados.Select(d => d.NombreArchivo).ToList() : new List<string>();
@@ -208,18 +210,21 @@ namespace CertiScan.ViewModels
         private void DeletePdf()
         {
             if (!CanDeletePdf()) return;
-            if (MessageBox.Show($"¿Eliminar '{SelectedDocumento.NombreArchivo}'?", "Confirmar", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            if (MessageBox.Show($"¿Eliminar '{SelectedDocumento.NombreArchivo}'?", "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
                 _databaseService.DeleteDocument(SelectedDocumento.Id);
                 DocumentosMostrados.Remove(SelectedDocumento);
+
+                // CORRECCIÓN: Limpia la vista después de eliminar satisfactoriamente
                 SelectedDocumento = null;
+                ContenidoDocumento = string.Empty;
+                RutaPdfActual = null;
             }
         }
 
         private void LoadAllDocuments()
         {
             DocumentosMostrados.Clear();
-            // CORRECCIÓN: Carga solo los documentos pertenecientes al usuario actual
             var documentosBase = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId);
             foreach (var doc in documentosBase) DocumentosMostrados.Add(new DocumentoViewModel(doc));
         }
@@ -235,7 +240,6 @@ namespace CertiScan.ViewModels
                     Directory.CreateDirectory(Path.GetDirectoryName(destino));
                     File.Copy(ruta, destino, true);
 
-                    // CORRECCIÓN: Se envía el ID del usuario al guardar el documento
                     _databaseService.GuardarDocumento(
                         Path.GetFileName(ruta),
                         destino,
