@@ -9,6 +9,7 @@ using System;
 using System.IO;
 using CertiScan.Models;
 using System.Text;
+using System.Data; // <--- ESENCIAL PARA DATATABLE
 
 namespace CertiScan.ViewModels
 {
@@ -24,7 +25,7 @@ namespace CertiScan.ViewModels
         public string DireccionInput { get; set; }
         public string ContactoInput { get; set; }
 
-        // --- MÓDULO UIF (Búsqueda General) ---
+        // --- MÓDULO UIF ---
         private string _terminoBusqueda = string.Empty;
         public string TerminoBusqueda
         {
@@ -48,7 +49,7 @@ namespace CertiScan.ViewModels
         public bool IsAprobatoriaButtonEnabled { get; private set; }
         public bool IsDenegadaButtonEnabled { get; private set; }
 
-        // --- MÓDULO SAT (Verificación 69-B) ---
+        // --- MÓDULO SAT (69-B) ---
         private string _terminoBusquedaSat = string.Empty;
         public string TerminoBusquedaSat { get => _terminoBusquedaSat; set => SetProperty(ref _terminoBusquedaSat, value); }
 
@@ -62,8 +63,9 @@ namespace CertiScan.ViewModels
             get => _selectedDocumentoSat;
             set { if (SetProperty(ref _selectedDocumentoSat, value)) ContenidoDocumentoSat = value != null ? _databaseService.GetDocumentoContent(value.Id) : string.Empty; }
         }
-        public string ContenidoDocumentoSat { get => _contenidoDocumentoSat; set => SetProperty(ref _contenidoDocumentoSat, value); }
+
         private string _contenidoDocumentoSat;
+        public string ContenidoDocumentoSat { get => _contenidoDocumentoSat; set => SetProperty(ref _contenidoDocumentoSat, value); }
 
         // --- COMANDOS ---
         public IRelayCommand CargarPdfCommand { get; }
@@ -110,71 +112,109 @@ namespace CertiScan.ViewModels
         {
             var openFileDialog = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = "Todos los archivos soportados (*.pdf;*.csv;*.txt)|*.pdf;*.csv;*.txt",
-                Multiselect = true
+                Filter = "Archivos Soportados (*.pdf;*.csv;*.txt)|*.pdf;*.csv;*.txt",
+                Multiselect = false
             };
 
             if (openFileDialog.ShowDialog() == true)
             {
-                // Definimos el módulo destino
-                string moduloDestino = esParaSat ? "SAT" : "UIF";
+                string ruta = openFileDialog.FileName;
+                string extension = Path.GetExtension(ruta).ToLower();
 
-                foreach (string ruta in openFileDialog.FileNames)
+                if (esParaSat && extension == ".csv")
                 {
-                    try
-                    {
-                        string extension = Path.GetExtension(ruta).ToLower();
-                        string contenido = string.Empty;
-
-                        if (extension == ".pdf")
-                            contenido = _pdfService.ExtraerTextoDePdf(ruta);
-                        else if (extension == ".csv" || extension == ".txt")
-                            contenido = File.ReadAllText(ruta, Encoding.UTF8);
-
-                        string nombreArchivo = Path.GetFileName(ruta);
-                        string destino = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DocumentosAlmacenados", nombreArchivo);
-
-                        Directory.CreateDirectory(Path.GetDirectoryName(destino));
-                        File.Copy(ruta, destino, true);
-
-                        // PASO CLAVE: Guardamos el documento con el identificador del módulo
-                        _databaseService.GuardarDocumento(nombreArchivo, destino, contenido, SessionService.CurrentUserId, moduloDestino);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error al procesar {Path.GetFileName(ruta)}: {ex.Message}");
-                    }
+                    ProcesarCargaMasivaSat(ruta);
+                }
+                else
+                {
+                    ProcesarDocumentoIndividual(ruta, esParaSat ? "SAT" : "UIF");
                 }
                 LoadAllDocuments();
-                MessageBox.Show($"Archivo(s) cargado(s) correctamente en {moduloDestino}.");
             }
+        }
+
+        private void ProcesarCargaMasivaSat(string ruta)
+        {
+            try
+            {
+                DataTable dt = new DataTable();
+                dt.Columns.Add("RFC");
+                dt.Columns.Add("NombreContribuyente");
+                dt.Columns.Add("Situacion");
+                dt.Columns.Add("UsuarioId", typeof(int));
+
+                var lineas = File.ReadLines(ruta, Encoding.UTF8).Skip(3);
+
+                foreach (var linea in lineas)
+                {
+                    var campos = linea.Split(',');
+                    if (campos.Length >= 4)
+                    {
+                        dt.Rows.Add(campos[1].Trim(), campos[2].Trim(), campos[3].Trim(), SessionService.CurrentUserId);
+                    }
+                }
+
+                _databaseService.CargaMasivaListadoSat(dt);
+
+                string nombreArchivo = Path.GetFileName(ruta);
+                string destino = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DocumentosAlmacenados", nombreArchivo);
+                Directory.CreateDirectory(Path.GetDirectoryName(destino));
+                if (!File.Exists(destino)) File.Copy(ruta, destino);
+
+                _databaseService.GuardarDocumento(nombreArchivo, destino, "LISTADO MASIVO PROCESADO", SessionService.CurrentUserId, "SAT");
+                MessageBox.Show("Listado 69-B importado con éxito.");
+            }
+            catch (Exception ex) { MessageBox.Show($"Error: {ex.Message}"); }
+        }
+
+        private void ProcesarDocumentoIndividual(string ruta, string modulo)
+        {
+            try
+            {
+                string extension = Path.GetExtension(ruta).ToLower();
+                string contenido = extension == ".pdf" ? _pdfService.ExtraerTextoDePdf(ruta) : File.ReadAllText(ruta, Encoding.UTF8);
+
+                string nombreArchivo = Path.GetFileName(ruta);
+                string destino = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DocumentosAlmacenados", nombreArchivo);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(destino));
+                File.Copy(ruta, destino, true);
+
+                _databaseService.GuardarDocumento(nombreArchivo, destino, contenido, SessionService.CurrentUserId, modulo);
+            }
+            catch (Exception ex) { MessageBox.Show($"Error: {ex.Message}"); }
         }
 
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-            // Filtramos la búsqueda para que solo busque en documentos de tipo 'UIF'
+            // Corregido: Se pasa el parámetro "UIF"
             var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId, "UIF");
             ResultadoEncontrado = resultados.Count > 0;
             UpdateConstanciaButtonStates(true);
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
-            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA!" : "No hay coincidencias.");
+            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "No hay coincidencias.");
         }
 
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-            // Filtramos la búsqueda para que solo busque en documentos de tipo 'SAT'
-            var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
-            bool hallazgo = resultados.Count > 0;
+            DataTable resultados = _databaseService.BuscarEnListadoSat(TerminoBusquedaSat);
+            bool hallazgo = resultados.Rows.Count > 0;
             IsReporteSatEnabled = true;
-            MessageBox.Show(hallazgo ? "¡HALLAZGO EN LISTA 69-B!" : "Análisis completado sin hallazgos.");
+
+            if (hallazgo)
+            {
+                string msg = $"¡HALLAZGO! contribuyente: {resultados.Rows[0]["NombreContribuyente"]}\nSituación: {resultados.Rows[0]["Situacion"]}";
+                MessageBox.Show(msg, "Alerta SAT 69-B", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else { MessageBox.Show("Sin coincidencias en el listado 69-B.", "Resultado SAT"); }
         }
 
         private void LoadAllDocuments()
         {
-            // Cargamos por separado cada lista filtrando por el tipo de módulo
             DocumentosMostrados.Clear();
+            // Corregido: Se pasan los parámetros por módulo
             var docsUif = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
             foreach (var doc in docsUif) DocumentosMostrados.Add(new DocumentoViewModel(doc));
 
@@ -183,7 +223,6 @@ namespace CertiScan.ViewModels
             foreach (var doc in docsSat) DocumentosSatMostrados.Add(new DocumentoViewModel(doc));
         }
 
-        // ... Resto de métodos de soporte (UpdateConstanciaButtonStates, CargarDatosNotariaDesdeBD, etc.)
         private void UpdateConstanciaButtonStates(bool realizada)
         {
             IsAprobatoriaButtonEnabled = realizada && !ResultadoEncontrado;

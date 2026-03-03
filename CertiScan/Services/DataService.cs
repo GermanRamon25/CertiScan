@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using CertiScan.Models;
 using System.Configuration;
+using System.Data; // Necesario para DataTable y SqlBulkCopy
 
 namespace CertiScan.Services
 {
@@ -65,14 +66,13 @@ namespace CertiScan.Services
                     command.Parameters.AddWithValue("@Email", (object)info.Email ?? DBNull.Value);
                     command.Parameters.AddWithValue("@Id", info.Id);
 
-                    int filas = command.ExecuteNonQuery();
-                    return filas > 0;
+                    return command.ExecuteNonQuery() > 0;
                 }
             }
         }
 
         // ==========================================
-        // GESTIÓN DE USUARIOS
+        // GESTIÓN DE USUARIOS (Login y Registro)
         // ==========================================
 
         public Usuario GetUserByUsername(string username)
@@ -112,8 +112,7 @@ namespace CertiScan.Services
                 {
                     command.Parameters.AddWithValue("@Username", username);
                     command.Parameters.AddWithValue("@Password", password);
-                    int userCount = (int)command.ExecuteScalar();
-                    return userCount > 0;
+                    return (int)command.ExecuteScalar() > 0;
                 }
             }
         }
@@ -124,7 +123,6 @@ namespace CertiScan.Services
             {
                 connection.Open();
                 SqlTransaction transaction = connection.BeginTransaction();
-
                 try
                 {
                     var insertNotariaQuery = "INSERT INTO Notaria (NombreNotario) OUTPUT INSERTED.Id VALUES ('Nueva Notaría')";
@@ -147,7 +145,7 @@ namespace CertiScan.Services
                     transaction.Commit();
                     return true;
                 }
-                catch (Exception)
+                catch
                 {
                     transaction.Rollback();
                     throw;
@@ -156,50 +154,63 @@ namespace CertiScan.Services
         }
 
         // ==========================================
-        // MÉTODOS DE DOCUMENTOS (MODIFICADOS PARA CLASIFICACIÓN)
+        // MÉTODOS DE DOCUMENTOS Y LISTADO SAT 69-B
         // ==========================================
 
-        // Se agrega parámetro tipoModulo ('UIF' o 'SAT') para vincular el archivo a su sección
         public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto, int usuarioId, string tipoModulo)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Documentos (NombreArchivo, RutaFisica, ContenidoTexto, UsuarioId, TipoModulo) VALUES (@NombreArchivo, @RutaFisica, @ContenidoTexto, @UsuarioId, @TipoModulo)";
+                var query = "INSERT INTO Documentos (NombreArchivo, RutaFisica, ContenidoTexto, UsuarioId, TipoModulo) VALUES (@NA, @RF, @CT, @UID, @TM)";
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@NombreArchivo", nombreArchivo);
-                    command.Parameters.AddWithValue("@RutaFisica", rutaFisica);
-                    command.Parameters.AddWithValue("@ContenidoTexto", contenidoTexto);
-                    command.Parameters.AddWithValue("@UsuarioId", usuarioId);
-                    command.Parameters.AddWithValue("@TipoModulo", tipoModulo);
+                    command.Parameters.AddWithValue("@NA", nombreArchivo);
+                    command.Parameters.AddWithValue("@RF", rutaFisica);
+                    command.Parameters.AddWithValue("@CT", contenidoTexto);
+                    command.Parameters.AddWithValue("@UID", usuarioId);
+                    command.Parameters.AddWithValue("@TM", tipoModulo);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        // Filtra por usuario y por el módulo correspondiente
+        public void CargaMasivaListadoSat(DataTable dtSat)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                using (var cmd = new SqlCommand("DELETE FROM ListadoSat69B", connection)) { cmd.ExecuteNonQuery(); }
+
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+                {
+                    bulkCopy.DestinationTableName = "ListadoSat69B";
+                    bulkCopy.BatchSize = 5000;
+                    bulkCopy.ColumnMappings.Add("RFC", "RFC");
+                    bulkCopy.ColumnMappings.Add("NombreContribuyente", "NombreContribuyente");
+                    bulkCopy.ColumnMappings.Add("Situacion", "Situacion");
+                    bulkCopy.ColumnMappings.Add("UsuarioId", "UsuarioId");
+                    bulkCopy.WriteToServer(dtSat);
+                }
+            }
+        }
+
         public List<Documento> GetDocumentsByUser(int usuarioId, string tipoModulo)
         {
             var resultados = new List<Documento>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UsuarioId AND TipoModulo = @TipoModulo ORDER BY FechaCarga DESC";
+                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UID AND TipoModulo = @TM ORDER BY FechaCarga DESC";
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@UsuarioId", usuarioId);
-                    command.Parameters.AddWithValue("@TipoModulo", tipoModulo);
+                    command.Parameters.AddWithValue("@UID", usuarioId);
+                    command.Parameters.AddWithValue("@TM", tipoModulo);
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            resultados.Add(new Documento
-                            {
-                                Id = reader.GetInt32(0),
-                                NombreArchivo = reader.GetString(1),
-                                FechaCarga = reader.GetDateTime(2)
-                            });
+                            resultados.Add(new Documento { Id = reader.GetInt32(0), NombreArchivo = reader.GetString(1), FechaCarga = reader.GetDateTime(2) });
                         }
                     }
                 }
@@ -207,29 +218,39 @@ namespace CertiScan.Services
             return resultados;
         }
 
-        // Búsqueda filtrada por módulo para evitar cruce de datos entre pestañas
+        public DataTable BuscarEnListadoSat(string termino)
+        {
+            DataTable dt = new DataTable();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                string query = "SELECT RFC, NombreContribuyente, Situacion FROM ListadoSat69B WHERE RFC LIKE @T OR NombreContribuyente LIKE @T";
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@T", "%" + termino + "%");
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command)) { adapter.Fill(dt); }
+                }
+            }
+            return dt;
+        }
+
         public List<Documento> BuscarTermino(string termino, int usuarioId, string tipoModulo)
         {
             var resultados = new List<Documento>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UsuarioId AND TipoModulo = @TipoModulo AND CONTAINS(ContenidoTexto, @Termino)";
+                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UID AND TipoModulo = @TM AND CONTAINS(ContenidoTexto, @Termino)";
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@UsuarioId", usuarioId);
-                    command.Parameters.AddWithValue("@TipoModulo", tipoModulo);
+                    command.Parameters.AddWithValue("@UID", usuarioId);
+                    command.Parameters.AddWithValue("@TM", tipoModulo);
                     command.Parameters.AddWithValue("@Termino", $"\"{termino}\"");
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            resultados.Add(new Documento
-                            {
-                                Id = reader.GetInt32(0),
-                                NombreArchivo = reader.GetString(1),
-                                FechaCarga = reader.GetDateTime(2)
-                            });
+                            resultados.Add(new Documento { Id = reader.GetInt32(0), NombreArchivo = reader.GetString(1), FechaCarga = reader.GetDateTime(2) });
                         }
                     }
                 }
@@ -258,28 +279,25 @@ namespace CertiScan.Services
             {
                 connection.Open();
                 string filePath = null;
-                var selectQuery = "SELECT RutaFisica FROM Documentos WHERE Id = @Id";
-                using (var selectCommand = new SqlCommand(selectQuery, connection))
+                using (var cmd = new SqlCommand("SELECT RutaFisica FROM Documentos WHERE Id = @Id", connection))
                 {
-                    selectCommand.Parameters.AddWithValue("@Id", documentId);
-                    var result = selectCommand.ExecuteScalar();
-                    if (result != null) filePath = result.ToString();
+                    cmd.Parameters.AddWithValue("@Id", documentId);
+                    var res = cmd.ExecuteScalar();
+                    if (res != null) filePath = res.ToString();
                 }
-
                 if (filePath == null) throw new Exception("No se encontró el documento.");
 
-                var deleteQuery = "DELETE FROM Documentos WHERE Id = @Id";
-                using (var deleteCommand = new SqlCommand(deleteQuery, connection))
+                using (var cmd = new SqlCommand("DELETE FROM Documentos WHERE Id = @Id", connection))
                 {
-                    deleteCommand.Parameters.AddWithValue("@Id", documentId);
-                    deleteCommand.ExecuteNonQuery();
+                    cmd.Parameters.AddWithValue("@Id", documentId);
+                    cmd.ExecuteNonQuery();
                 }
                 return filePath;
             }
         }
 
         // ==========================================
-        // HISTORIAL DE BÚSQUEDAS
+        // HISTORIAL DE BÚSQUEDAS (CORREGIDO PARA LÍNEA 65)
         // ==========================================
 
         public void RegistrarBusqueda(string terminoBuscado, bool resultadoEncontrado, int usuarioId)
@@ -287,12 +305,12 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId) VALUES (@Termino, @Encontrado, @UsuarioId)";
+                var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId) VALUES (@T, @RE, @UID)";
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@Termino", terminoBuscado);
-                    command.Parameters.AddWithValue("@Encontrado", resultadoEncontrado);
-                    command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+                    command.Parameters.AddWithValue("@T", terminoBuscado);
+                    command.Parameters.AddWithValue("@RE", resultadoEncontrado);
+                    command.Parameters.AddWithValue("@UID", usuarioId);
                     command.ExecuteNonQuery();
                 }
             }
@@ -304,23 +322,27 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
+
+                // Verificamos si es administrador para mostrar todo el historial o solo el personal
                 bool esAdmin = (nombreUsuario.ToLower() == "admin");
 
                 string query = @"
-                SELECT
-                u.NombreUsuario,
-                b.TerminoBuscado,
-                b.FechaCarga,
-                b.ResultadoEncontrado
-                FROM Busquedas b
-                JOIN Usuarios u ON b.UsuarioId = u.Id";
+            SELECT 
+                u.NombreUsuario, 
+                b.TerminoBuscado, 
+                b.FechaCarga, 
+                b.ResultadoEncontrado 
+            FROM Busquedas b
+            JOIN Usuarios u ON b.UsuarioId = u.Id";
 
                 if (!esAdmin) query += " WHERE b.UsuarioId = @UsuarioId";
+
                 query += " ORDER BY b.FechaCarga DESC";
 
                 using (var command = new SqlCommand(query, connection))
                 {
                     if (!esAdmin) command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
