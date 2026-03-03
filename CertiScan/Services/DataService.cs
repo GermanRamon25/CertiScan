@@ -156,38 +156,40 @@ namespace CertiScan.Services
         }
 
         // ==========================================
-        // MÉTODOS DE DOCUMENTOS (ACTUALIZADOS POR USUARIO)
+        // MÉTODOS DE DOCUMENTOS (MODIFICADOS PARA CLASIFICACIÓN)
         // ==========================================
 
-        // Se agrega el parámetro usuarioId para vincular el archivo al subirlo
-        public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto, int usuarioId)
+        // Se agrega parámetro tipoModulo ('UIF' o 'SAT') para vincular el archivo a su sección
+        public void GuardarDocumento(string nombreArchivo, string rutaFisica, string contenidoTexto, int usuarioId, string tipoModulo)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Documentos (NombreArchivo, RutaFisica, ContenidoTexto, UsuarioId) VALUES (@NombreArchivo, @RutaFisica, @ContenidoTexto, @UsuarioId)";
+                var query = "INSERT INTO Documentos (NombreArchivo, RutaFisica, ContenidoTexto, UsuarioId, TipoModulo) VALUES (@NombreArchivo, @RutaFisica, @ContenidoTexto, @UsuarioId, @TipoModulo)";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@NombreArchivo", nombreArchivo);
                     command.Parameters.AddWithValue("@RutaFisica", rutaFisica);
                     command.Parameters.AddWithValue("@ContenidoTexto", contenidoTexto);
                     command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+                    command.Parameters.AddWithValue("@TipoModulo", tipoModulo);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        // Se reemplaza GetAllDocuments por uno que filtre por el usuario actual
-        public List<Documento> GetDocumentsByUser(int usuarioId)
+        // Filtra por usuario y por el módulo correspondiente
+        public List<Documento> GetDocumentsByUser(int usuarioId, string tipoModulo)
         {
             var resultados = new List<Documento>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UsuarioId ORDER BY FechaCarga DESC";
+                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UsuarioId AND TipoModulo = @TipoModulo ORDER BY FechaCarga DESC";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+                    command.Parameters.AddWithValue("@TipoModulo", tipoModulo);
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -205,17 +207,18 @@ namespace CertiScan.Services
             return resultados;
         }
 
-        // Filtrar búsqueda para que solo encuentre palabras en documentos del usuario
-        public List<Documento> BuscarTermino(string termino, int usuarioId)
+        // Búsqueda filtrada por módulo para evitar cruce de datos entre pestañas
+        public List<Documento> BuscarTermino(string termino, int usuarioId, string tipoModulo)
         {
             var resultados = new List<Documento>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UsuarioId AND CONTAINS(ContenidoTexto, @Termino)";
+                var query = "SELECT Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UsuarioId AND TipoModulo = @TipoModulo AND CONTAINS(ContenidoTexto, @Termino)";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+                    command.Parameters.AddWithValue("@TipoModulo", tipoModulo);
                     command.Parameters.AddWithValue("@Termino", $"\"{termino}\"");
                     using (var reader = command.ExecuteReader())
                     {
