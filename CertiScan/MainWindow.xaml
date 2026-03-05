@@ -275,7 +275,7 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding SelectedDocumento.NombreArchivo}" FontSize="20" FontWeight="Bold" Foreground="#213449" Margin="0,0,0,10"/>
                                         <Separator Margin="0,0,0,20" Background="#E0E0E0"/>
-                                        <TextBlock Text="{Binding ContenidoDocumento}" TextWrapping="Wrap" FontSize="15" FontFamily="Segoe UI" Foreground="#333333"/>
+                                        <TextBox Text="{Binding ContenidoDocumento}" TextWrapping="Wrap" IsReadOnly="True" BorderThickness="0" Background="Transparent" FontSize="15" FontFamily="Segoe UI" Foreground="#333333" AcceptsReturn="True"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>
@@ -303,7 +303,7 @@
 
                             <TextBox Width="350" Margin="10,0" Style="{StaticResource ModernTextBox}" Tag="Buscar RFC o Razón Social..." Text="{Binding TerminoBusquedaSat, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <Button Content="Analizar" Width="100" Height="35" Style="{StaticResource ModernButtonStyle}" Background="{StaticResource SatColor}" Command="{Binding BuscarSatCommand}"/>
+                            <Button Content="Buscar" Width="100" Height="35" Style="{StaticResource ModernButtonStyle}" Background="{StaticResource SatColor}" Command="{Binding BuscarSatCommand}"/>
                             <Button Content="Eliminar PDF" Width="120" Margin="15,0,0,0" Style="{StaticResource EliminarStyle}" Command="{Binding DeletePdfSatCommand}"/>
 
                             <Button Content="Historial 69-B" Width="120" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" Command="{Binding ShowHistorySatCommand}"/>
@@ -361,7 +361,7 @@
                                         <TextBlock Text="{Binding SelectedDocumentoSat.NombreArchivo}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource SatColor}" Margin="0,0,0,10"/>
                                         <Separator Margin="0,0,0,20" Background="#E0E0E0"/>
 
-                                        <TextBlock Text="{Binding ContenidoDocumentoSat}" TextWrapping="Wrap" FontSize="15" FontFamily="Segoe UI" Foreground="#333333"/>
+                                        <TextBox Text="{Binding ContenidoDocumentoSat}" TextWrapping="Wrap" IsReadOnly="True" BorderThickness="0" Background="Transparent" FontSize="15" FontFamily="Segoe UI" Foreground="#333333" AcceptsReturn="True"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>

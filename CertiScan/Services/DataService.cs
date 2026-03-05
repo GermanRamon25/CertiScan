@@ -221,12 +221,31 @@ namespace CertiScan.Services
         }
 
         // ============================================================
-        // CARGA MASIVA - CORREGIDA: NO SE SALTA NADA
+        // CARGA MASIVA - CORREGIDA: Filtra encabezados informativos del SAT
         // ============================================================
         public async Task CargaMasivaListadoSatAsync(DataTable dtSat)
         {
             try
             {
+                // CORRECCIÓN: Filtrar el DataTable antes de la carga masiva
+                // El SAT incluye filas con texto legal al inicio. Las eliminamos:
+                for (int i = dtSat.Rows.Count - 1; i >= 0; i--)
+                {
+                    DataRow dr = dtSat.Rows[i];
+                    string primeraColumna = dr[0].ToString();
+                    string segundaColumna = dr[1].ToString();
+
+                    // Si la fila contiene el texto legal o es el encabezado de nombres de columna, se elimina
+                    if (primeraColumna.Contains("Información actualizada") ||
+                        primeraColumna.Contains("Listado completo") ||
+                        primeraColumna.Equals("No") ||
+                        segundaColumna.Equals("RFC"))
+                    {
+                        dr.Delete();
+                    }
+                }
+                dtSat.AcceptChanges(); // Aplicar los borrados
+
                 using (var connection = new SqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
@@ -255,14 +274,7 @@ namespace CertiScan.Services
             }
             catch (Exception ex)
             {
-                if (ex.Message.Contains("recibida es demasiado larga") || ex.Message.Contains("truncamiento"))
-                {
-                    System.Windows.MessageBox.Show("El archivo se procesó, pero los párrafos de texto iniciales eran muy largos. Los datos de la tabla deberían estar disponibles.", "CertiScan");
-                }
-                else
-                {
-                    System.Windows.MessageBox.Show("Error al cargar: " + ex.Message, "Error");
-                }
+                System.Windows.MessageBox.Show("Error al cargar los datos: " + ex.Message, "Error de Sistema");
             }
         }
 
@@ -333,23 +345,50 @@ namespace CertiScan.Services
         }
 
         // ============================================================
-        // MÉTODO DE BÚSQUEDA CORREGIDO (Ignora espacios en blanco)
+        // MÉTODO DE BÚSQUEDA INTELIGENTE (Ignora espacios extra)
         // ============================================================
         public DataTable BuscarEnListadoSat(string termino)
         {
             DataTable dt = new DataTable();
+            if (string.IsNullOrWhiteSpace(termino)) return dt;
+
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                // Usamos LTRIM y RTRIM para que si el CSV cargó espacios, no afecten la búsqueda
+
+                // 1. Limpiamos espacios accidentales al inicio y al final
+                termino = termino.Trim();
+
+                // 2. Dividimos el texto en palabras individuales
+                // Esto ignora los dobles o triples espacios que el SAT suele poner por error
+                string[] palabras = termino.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                // 3. Construimos una consulta SQL dinámica
                 string query = @"SELECT TOP 100 RFC, NombreContribuyente, Situacion 
                                  FROM ListadoSat69B 
-                                 WHERE LTRIM(RTRIM(RFC)) LIKE @T 
-                                 OR LTRIM(RTRIM(NombreContribuyente)) LIKE @T";
+                                 WHERE LTRIM(RTRIM(RFC)) LIKE @TerminoExacto 
+                                 OR (";
+
+                // Exigimos que el nombre contenga TODAS las palabras que el usuario escribió, sin importar los espacios entre ellas
+                for (int i = 0; i < palabras.Length; i++)
+                {
+                    if (i > 0) query += " AND ";
+                    query += $"LTRIM(RTRIM(NombreContribuyente)) LIKE @P{i}";
+                }
+
+                query += ")"; // Cerramos la condición OR
 
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@T", "%" + termino + "%");
+                    // Parámetro para buscar el RFC (ya que ese no lleva espacios)
+                    command.Parameters.AddWithValue("@TerminoExacto", "%" + termino + "%");
+
+                    // Parámetros para buscar cada parte del nombre
+                    for (int i = 0; i < palabras.Length; i++)
+                    {
+                        command.Parameters.AddWithValue($"@P{i}", "%" + palabras[i] + "%");
+                    }
+
                     using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                     {
                         adapter.Fill(dt);
