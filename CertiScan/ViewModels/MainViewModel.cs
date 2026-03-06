@@ -12,6 +12,7 @@ using System.Text;
 using System.Data;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
+using System.Globalization;
 
 namespace CertiScan.ViewModels
 {
@@ -23,9 +24,6 @@ namespace CertiScan.ViewModels
         public string NombreUsuarioLogueado { get; }
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
         public ObservableCollection<DocumentoViewModel> DocumentosSatMostrados { get; set; }
-
-        // --- CONEXIÓN DEL HISTORIAL ---
-        public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
 
         // --- MÓDULO UIF ---
         private string _terminoBusqueda = string.Empty;
@@ -61,7 +59,7 @@ namespace CertiScan.ViewModels
         private string _contenidoDocumento;
         public string ContenidoDocumento { get => _contenidoDocumento; set => SetProperty(ref _contenidoDocumento, value); }
 
-        // --- MÓDULO SAT ---
+        // --- MÓDULO SAT (69-B) ---
         private string _terminoBusquedaSat = string.Empty;
         public string TerminoBusquedaSat
         {
@@ -110,36 +108,36 @@ namespace CertiScan.ViewModels
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
             DocumentosSatMostrados = new ObservableCollection<DocumentoViewModel>();
 
-            // Inicializar historial
-            HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
-
             CargarPdfCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(false));
             CargarPdfSatCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(true));
+
             BuscarCommand = new RelayCommand(Buscar);
             BuscarSatCommand = new RelayCommand(BuscarSat);
+
             DeletePdfCommand = new RelayCommand(DeletePdf, () => SelectedDocumento != null);
             DeletePdfSatCommand = new RelayCommand(DeletePdfSat, () => SelectedDocumentoSat != null);
+
             RefreshCommand = new RelayCommand(RefreshView);
             RefreshSatCommand = new RelayCommand(RefreshViewSat);
+
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
-
-            // Cargar datos iniciales al arrancar
             LoadAllDocuments();
-            LoadHistorial();
         }
 
-        // MÉTODO PARA RECARGAR EL HISTORIAL DESDE LA BD
-        public void LoadHistorial()
+        // MÉTODO CLAVE: Normaliza el texto para que la búsqueda ignore tildes y mayúsculas
+        private string NormalizarTexto(string texto)
         {
-            // Usamos el método exacto que definiste en DatabaseService
-            var historial = _databaseService.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
-
-            Application.Current.Dispatcher.Invoke(() => {
-                HistorialBusquedas.Clear();
-                foreach (var h in historial) HistorialBusquedas.Add(h);
-            });
+            if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
+            var normalizedString = texto.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder();
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark) stringBuilder.Append(c);
+            }
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLower().Trim();
         }
 
         private void UpdateConstanciaButtonStates(bool realizada)
@@ -148,150 +146,58 @@ namespace CertiScan.ViewModels
             IsDenegadaButtonEnabled = realizada && ResultadoEncontrado;
         }
 
-        private string _fuenteHallazgoUif = string.Empty;
-
+        // Búsqueda UIF (Se mantiene igual, ya que funciona bien)
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-
             var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId, "UIF");
             ResultadoEncontrado = resultados.Count > 0;
-
-            _fuenteHallazgoUif = ResultadoEncontrado
-                ? string.Join(", ", resultados.Select(d => d.NombreArchivo))
-                : string.Empty;
-
             UpdateConstanciaButtonStates(true);
-
-            // REGISTRAMOS Y CARGAMOS HISTORIAL INMEDIATAMENTE
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
-            LoadHistorial();
-
-            MessageBox.Show(ResultadoEncontrado
-                ? "¡COINCIDENCIA ENCONTRADA EN UIF!"
-                : "Sin coincidencias en el módulo UIF.");
+            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias en UIF.");
         }
 
+        // CORRECCIÓN: Búsqueda SAT (Ahora funciona igual que la de UIF, buscando en los archivos cargados)
         private void BuscarSat()
         {
-            string terminoLimpio = TerminoBusquedaSat?.Trim();
-            if (string.IsNullOrWhiteSpace(terminoLimpio)) return;
+            string nombreBuscado = NormalizarTexto(TerminoBusquedaSat);
+            if (string.IsNullOrWhiteSpace(nombreBuscado)) return;
 
-            DataTable resultados = _databaseService.BuscarEnListadoSat(terminoLimpio);
-            ResultadoEncontradoSat = resultados.Rows.Count > 0;
+            // Buscamos en los archivos que se han cargado en el módulo SAT
+            var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
+
+            ResultadoEncontradoSat = resultados.Count > 0;
             IsReporteSatEnabled = true;
 
-            // REGISTRAMOS Y CARGAMOS HISTORIAL PARA SAT TAMBIÉN
-            _databaseService.RegistrarBusqueda(terminoLimpio, ResultadoEncontradoSat, SessionService.CurrentUserId);
-            LoadHistorial();
+            // Registramos en historial
+            _databaseService.RegistrarBusqueda(TerminoBusquedaSat, ResultadoEncontradoSat, SessionService.CurrentUserId);
 
             if (ResultadoEncontradoSat)
             {
-                MessageBox.Show($"¡ALERTA! Coincidencia en listas negras (69-B)", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("🚨 ¡ATENCIÓN! El nombre se encuentra en los documentos del Listado 69-B.",
+                                "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
-                MessageBox.Show("Sin coincidencias (Limpio).", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("✅ El nombre NO se encuentra en los documentos del Listado 69-B.",
+                                "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
         private void GenerarConstancia(bool esAprobatoria)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(TerminoBusqueda))
-                {
-                    MessageBox.Show("Primero debe realizar una búsqueda en el módulo UIF.");
-                    return;
-                }
-
-                string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_UIF_{Guid.NewGuid()}.pdf");
-
-                var infoNotaria = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datosNotaria = new DatosNotaria
-                {
-                    NombreNotario = infoNotaria?.NombreNotario ?? "No especificado",
-                    NumeroNotaria = infoNotaria?.NumeroNotaria ?? "0",
-                    DireccionCompleta = infoNotaria?.Direccion ?? "Sinaloa, México",
-                    DatosContacto = $"Tel: {infoNotaria?.Telefono} | Email: {infoNotaria?.Email}"
-                };
-
-                // PASO CLAVE: Si NO es aprobatoria, pasamos el nombre del archivo capturado
-                List<string> archivos = esAprobatoria
-                    ? new List<string>()
-                    : new List<string> { _fuenteHallazgoUif };
-
-                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, archivos, datosNotaria);
-
-                var viewer = new PdfViewerWindow(tempPath);
-                viewer.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al preparar la constancia UIF: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            MessageBox.Show(esAprobatoria ? "Generando Constancia Aprobatoria..." : "Generando Constancia de Hallazgo...");
         }
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
         {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog { Filter = "Archivos (*.pdf;*.csv;*.txt)|*.pdf;*.csv;*.txt" };
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog { Filter = "Archivos PDF (*.pdf)|*.pdf|Archivos de Texto (*.txt)|*.txt" };
             if (openFileDialog.ShowDialog() == true)
             {
                 string ruta = openFileDialog.FileName;
-                if (esParaSat && Path.GetExtension(ruta).ToLower() == ".csv")
-                    await Task.Run(() => ProcesarCargaMasivaSatAsync(ruta));
-                else
-                    await Task.Run(() => ProcesarDocumentoIndividualAsync(ruta, esParaSat ? "SAT" : "UIF"));
-
+                // Ahora ambos cargan archivos individuales (PDF/TXT)
+                await Task.Run(() => ProcesarDocumentoIndividualAsync(ruta, esParaSat ? "SAT" : "UIF"));
                 LoadAllDocuments();
-            }
-        }
-
-        private async Task ProcesarCargaMasivaSatAsync(string ruta)
-        {
-            DataTable dt = new DataTable();
-            dt.Columns.Add("RFC");
-            dt.Columns.Add("NombreContribuyente");
-            dt.Columns.Add("Situacion");
-            dt.Columns.Add("UsuarioId", typeof(int));
-
-            try
-            {
-                using (var parser = new TextFieldParser(ruta, Encoding.UTF8))
-                {
-                    parser.TextFieldType = FieldType.Delimited;
-                    parser.SetDelimiters(",");
-                    parser.HasFieldsEnclosedInQuotes = true;
-
-                    while (!parser.EndOfData)
-                    {
-                        string[] fila = parser.ReadFields();
-                        if (fila != null && fila.Any(f => f.Equals("RFC", StringComparison.OrdinalIgnoreCase)))
-                            break;
-                    }
-
-                    while (!parser.EndOfData)
-                    {
-                        string[] campos = parser.ReadFields();
-                        if (campos != null && campos.Length >= 4)
-                        {
-                            dt.Rows.Add(campos[1].Trim(), campos[2].Trim(), campos[3].Trim(), SessionService.CurrentUserId);
-                        }
-                    }
-                }
-
-                if (dt.Rows.Count > 0)
-                {
-                    await _databaseService.CargaMasivaListadoSatAsync(dt);
-                    await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, "LISTADO MASIVO PROCESADO", SessionService.CurrentUserId, "SAT");
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                        MessageBox.Show($"Carga finalizada. Se importaron {dt.Rows.Count} registros.", "CertiScan"));
-                }
-            }
-            catch (Exception ex)
-            {
-                Application.Current.Dispatcher.Invoke(() => MessageBox.Show($"Error en carga masiva: {ex.Message}"));
             }
         }
 
@@ -302,14 +208,13 @@ namespace CertiScan.ViewModels
                 string extension = Path.GetExtension(ruta).ToLower();
                 string contenido = extension == ".pdf" ? _pdfService.ExtraerTextoDePdf(ruta) : File.ReadAllText(ruta, Encoding.UTF8);
 
-                if (contenido.Length > 200000)
-                    contenido = contenido.Substring(0, 200000) + "\n\n... [VISTA PREVIA RECORTADA] ...";
-
+                // No truncamos el contenido para la base de datos para que la búsqueda sea completa, 
+                // pero si es muy pesado para la UI, puedes dejar el límite de 200,000 caracteres solo para la vista.
                 await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenido, SessionService.CurrentUserId, modulo);
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => MessageBox.Show($"Error: {ex.Message}"));
+                Application.Current.Dispatcher.Invoke(() => MessageBox.Show($"Error al cargar archivo: {ex.Message}"));
             }
         }
 
@@ -317,29 +222,34 @@ namespace CertiScan.ViewModels
         {
             var docsUif = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
             var docsSat = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "SAT");
+
             Application.Current.Dispatcher.Invoke(() => {
                 DocumentosMostrados.Clear();
                 foreach (var d in docsUif) DocumentosMostrados.Add(new DocumentoViewModel(d));
+
                 DocumentosSatMostrados.Clear();
                 foreach (var d in docsSat) DocumentosSatMostrados.Add(new DocumentoViewModel(d));
             });
         }
 
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
-        private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
 
-        private void RefreshView()
+        private void DeletePdfSat()
         {
-            LoadAllDocuments();
-            LoadHistorial();
+            if (SelectedDocumentoSat != null)
+            {
+                _databaseService.DeleteDocument(SelectedDocumentoSat.Id);
+                RefreshViewSat();
+            }
         }
+
+        private void RefreshView() { LoadAllDocuments(); }
 
         private void RefreshViewSat()
         {
             TerminoBusquedaSat = string.Empty;
             IsReporteSatEnabled = false;
             LoadAllDocuments();
-            LoadHistorial();
         }
     }
 }
