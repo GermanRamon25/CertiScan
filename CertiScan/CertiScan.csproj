@@ -215,7 +215,7 @@
       <DependentUpon>RegistrationWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Models\RichTextBoxHelper.cs" />
-    <Compile Include="Services\DataService.cs" />
+    <Compile Include="Services\DataService.cs" /><Compile Include="Services\PdfSatService.cs" />
     
     
     <Compile Include="Services\Pdfsevice.cs"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Compile>
