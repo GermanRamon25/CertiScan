@@ -5,72 +5,76 @@ using CertiScan.Services;
 
 namespace CertiScan
 {
-    /// <summary>
-    /// Lógica de interacción para MainWindow.xaml
-    /// Gestiona el menú lateral, el cambio de vistas (UIF vs SAT) y la sesión.
-    /// </summary>
     public partial class MainWindow : Window
     {
-        // Variable para controlar el estado del menú lateral
         private bool isSidebarOpen = false;
 
         public MainWindow()
         {
             InitializeComponent();
-
-            // Conectar con el ViewModel (Lógica de negocio)
             var viewModel = new MainViewModel();
             DataContext = viewModel;
         }
 
-        /// <summary>
-        /// Abre o cierra el menú lateral (Sidebar) cambiando su ancho.
-        /// </summary>
         private void SidebarToggle_Click(object sender, RoutedEventArgs e)
         {
             if (isSidebarOpen)
             {
-                // CERRAR: Cambia el ancho a 0 para ocultarlo
                 Sidebar.Width = 0;
                 isSidebarOpen = false;
             }
             else
             {
-                // ABRIR: Restaura el ancho original (ajusta 220 al tamaño que desees)
                 Sidebar.Width = 220;
                 isSidebarOpen = true;
             }
         }
 
-        /// <summary>
-        /// Maneja el cambio de pestañas/vistas desde el menú lateral.
-        /// Alterna la visibilidad entre el panel de UIF y el panel del SAT.
-        /// </summary>
         private void Menu_Checked(object sender, RoutedEventArgs e)
         {
             var radioButton = sender as RadioButton;
-
-            // Validación de seguridad por si los controles aún no cargan
             if (radioButton == null || ViewUIF == null || ViewSAT == null) return;
 
-            // Verificamos qué botón se seleccionó mediante su nombre o Tag
             if (radioButton.Name == "BtnUIF")
             {
-                // Mostrar UIF, Ocultar SAT
                 ViewUIF.Visibility = Visibility.Visible;
                 ViewSAT.Visibility = Visibility.Collapsed;
             }
             else if (radioButton.Name == "BtnSAT")
             {
-                // Mostrar SAT, Ocultar UIF
                 ViewUIF.Visibility = Visibility.Collapsed;
                 ViewSAT.Visibility = Visibility.Visible;
             }
         }
 
-        /// <summary>
-        /// Cierra la sesión actual y regresa a la ventana de Login.
-        /// </summary>
+        // ============================================================
+        // ESTO ES LO QUE FALTABA PARA QUE EL BOTÓN FUNCIONARA
+        // ============================================================
+        private void VerHistorial_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Creamos la ventana de historial
+            HistoryWindow ventanaHistorial = new HistoryWindow();
+            ventanaHistorial.Owner = this;
+
+            // 2. Creamos su ViewModel y cargamos los datos reales de la base de datos
+            var historyVm = new HistoryViewModel();
+
+            // Usamos el servicio de base de datos para traer la información
+            var db = new DatabaseService();
+            var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+
+            // 3. Limpiamos y llenamos la lista que se mostrará en la tabla
+            historyVm.HistorialBusquedas.Clear();
+            foreach (var item in datos)
+            {
+                historyVm.HistorialBusquedas.Add(item);
+            }
+
+            // 4. Conectamos la ventana con estos datos y la abrimos
+            ventanaHistorial.DataContext = historyVm;
+            ventanaHistorial.ShowDialog();
+        }
+
         private void LogoutButton_Click(object sender, RoutedEventArgs e)
         {
             SessionService.Logout();
@@ -79,9 +83,6 @@ namespace CertiScan
             this.Close();
         }
 
-        /// <summary>
-        /// Abre la ventana modal para configurar los datos de la notaría.
-        /// </summary>
         private void ConfigurarNotaria_Click(object sender, RoutedEventArgs e)
         {
             NotariaWindow ventanaNotaria = new NotariaWindow();

@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Collections.Generic;
-using System.Data;
 
 namespace CertiScan.ViewModels
 {
@@ -17,10 +16,8 @@ namespace CertiScan.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
 
-        // Lista completa desde la base de datos
         public ObservableCollection<BusquedaHistorial> Historial { get; set; }
 
-        // Propiedades para el buscador dinámico
         private string _filterText;
         public string FilterText
         {
@@ -28,11 +25,10 @@ namespace CertiScan.ViewModels
             set
             {
                 SetProperty(ref _filterText, value);
-                ApplyFilter(); // Filtra cada vez que el usuario escribe
+                ApplyFilter();
             }
         }
 
-        // Esta es la lista que se enlaza al DataGrid: ItemsSource="{Binding FilteredHistorial}"
         private ObservableCollection<BusquedaHistorial> _filteredHistorial;
         public ObservableCollection<BusquedaHistorial> FilteredHistorial
         {
@@ -47,6 +43,7 @@ namespace CertiScan.ViewModels
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
 
+            // INICIALIZACIÓN CLAVE
             Historial = new ObservableCollection<BusquedaHistorial>();
             FilteredHistorial = new ObservableCollection<BusquedaHistorial>();
 
@@ -55,13 +52,14 @@ namespace CertiScan.ViewModels
             LoadHistory();
         }
 
-        private void LoadHistory()
+        public void LoadHistory()
         {
             Historial.Clear();
             var user = SessionService.UsuarioLogueado;
 
             if (user != null)
             {
+                // Asegúrate de que el método en DatabaseService se llame GetSearchHistory
                 var historyItems = _databaseService.GetSearchHistory(user.Id, user.NombreUsuario);
 
                 foreach (var item in historyItems)
@@ -69,12 +67,9 @@ namespace CertiScan.ViewModels
                     Historial.Add(item);
                 }
             }
-
-            // Al cargar, mostrar toda la lista inicialmente
             ApplyFilter();
         }
 
-        // Lógica del buscador
         private void ApplyFilter()
         {
             if (string.IsNullOrWhiteSpace(FilterText))
@@ -98,55 +93,33 @@ namespace CertiScan.ViewModels
 
             try
             {
-                string tempFileName = $"Constancia_{historyItem.TerminoBuscado.Replace(" ", "_")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
-                string tempFilePath = Path.Combine(Path.GetTempPath(), tempFileName);
+                // Nombre temporal para el visor
+                string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_ReGen_{Guid.NewGuid()}.pdf");
 
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
+
+                // En el historial no tenemos la lista de archivos original, enviamos vacío o un texto genérico
                 List<string> nombresArchivos = new List<string>();
 
-                DatosNotaria datosParaPdf = null;
-
-                if (SessionService.UsuarioLogueado != null)
+                var infoDB = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+                var datosParaPdf = new DatosNotaria
                 {
-                    var infoDB = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+                    NombreNotario = infoDB?.NombreNotario ?? "No Configurado",
+                    NumeroNotaria = infoDB?.NumeroNotaria ?? "0",
+                    DireccionCompleta = infoDB?.Direccion ?? "No configurada",
+                    DatosContacto = $"Tel: {infoDB?.Telefono}"
+                };
 
-                    if (infoDB != null)
-                    {
-                        datosParaPdf = new DatosNotaria
-                        {
-                            NombreNotario = infoDB.NombreNotario,
-                            NumeroNotaria = infoDB.NumeroNotaria,
-                            DireccionCompleta = infoDB.Direccion,
-                            DatosContacto = $"Tel: {infoDB.Telefono} | Email: {infoDB.Email}"
-                        };
-                    }
-                }
+                _pdfService.GenerarConstancia(tempPath, historyItem.TerminoBuscado, esAprobatoria, nombresArchivos, datosParaPdf);
 
-                if (datosParaPdf == null)
-                {
-                    datosParaPdf = new DatosNotaria
-                    {
-                        NombreNotario = "DATO NO CONFIGURADO",
-                        NumeroNotaria = "0",
-                        DireccionCompleta = "Favor de configurar en el menú Notaría",
-                        DatosContacto = ""
-                    };
-                }
-
-                _pdfService.GenerarConstancia(
-                    tempFilePath,
-                    historyItem.TerminoBuscado,
-                    esAprobatoria,
-                    nombresArchivos,
-                    datosParaPdf
-                );
-
-                var viewer = new PdfViewerWindow(tempFilePath);
-                viewer.Show();
+                // --- CORRECCIÓN CLAVE PARA EL NOMBRE AUTOMÁTICO ---
+                // Le pasamos el término buscado al constructor para que al guardar aparezca "Constancia_NOMBRE_FECHA"
+                var viewer = new PdfViewerWindow(tempPath, historyItem.TerminoBuscado);
+                viewer.ShowDialog();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al generar la constancia: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error al regenerar: {ex.Message}");
             }
         }
     }
