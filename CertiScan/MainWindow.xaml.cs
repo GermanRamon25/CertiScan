@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using CertiScan.Services;
+using System;
 
 namespace CertiScan
 {
@@ -48,31 +49,42 @@ namespace CertiScan
         }
 
         // ============================================================
-        // ESTO ES LO QUE FALTABA PARA QUE EL BOTÓN FUNCIONARA
+        // MÉTODO DE HISTORIAL CORREGIDO
         // ============================================================
         private void VerHistorial_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Creamos la ventana de historial
-            HistoryWindow ventanaHistorial = new HistoryWindow();
-            ventanaHistorial.Owner = this;
-
-            // 2. Creamos su ViewModel y cargamos los datos reales de la base de datos
-            var historyVm = new HistoryViewModel();
-
-            // Usamos el servicio de base de datos para traer la información
-            var db = new DatabaseService();
-            var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
-
-            // 3. Limpiamos y llenamos la lista que se mostrará en la tabla
-            historyVm.HistorialBusquedas.Clear();
-            foreach (var item in datos)
+            try
             {
-                historyVm.HistorialBusquedas.Add(item);
-            }
+                // 1. Crear ventana y ViewModel
+                HistoryWindow ventanaHistorial = new HistoryWindow();
+                ventanaHistorial.Owner = this;
+                var historyVm = new HistoryViewModel();
 
-            // 4. Conectamos la ventana con estos datos y la abrimos
-            ventanaHistorial.DataContext = historyVm;
-            ventanaHistorial.ShowDialog();
+                // 2. Traer datos frescos de la base de datos
+                var db = new DatabaseService();
+                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+
+                // 3. Llenar la lista "Historial" (así se llama en tu HistoryViewModel)
+                if (historyVm.HistorialBusquedas != null)
+                {
+                    historyVm.HistorialBusquedas.Clear();
+                    if (datos != null)
+                    {
+                        foreach (var item in datos)
+                        {
+                            historyVm.HistorialBusquedas.Add(item);
+                        }
+                    }
+                }
+
+                // 4. Conectar la ventana con los datos y abrirla
+                ventanaHistorial.DataContext = historyVm;
+                ventanaHistorial.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar historial: " + ex.Message);
+            }
         }
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)

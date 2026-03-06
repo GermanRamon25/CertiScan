@@ -16,7 +16,8 @@ namespace CertiScan.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
 
-        public ObservableCollection<BusquedaHistorial> Historial { get; set; }
+        // CAMBIO CLAVE: El nombre debe ser HistorialBusquedas para que MainWindow lo encuentre
+        public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
 
         private string _filterText;
         public string FilterText
@@ -43,28 +44,29 @@ namespace CertiScan.ViewModels
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
 
-            // INICIALIZACIÓN CLAVE
-            Historial = new ObservableCollection<BusquedaHistorial>();
+            // INICIALIZACIÓN (Esto quita el error del .Clear() en MainWindow)
+            HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
             FilteredHistorial = new ObservableCollection<BusquedaHistorial>();
 
             RegenerateCertificateCommand = new RelayCommand<BusquedaHistorial>(RegenerateCertificate);
 
+            // Carga inicial al abrir la ventana
             LoadHistory();
         }
 
         public void LoadHistory()
         {
-            Historial.Clear();
+            // Ahora .Clear() no dará error porque la lista ya se creó en el constructor arriba
+            HistorialBusquedas.Clear();
             var user = SessionService.UsuarioLogueado;
 
             if (user != null)
             {
-                // Asegúrate de que el método en DatabaseService se llame GetSearchHistory
                 var historyItems = _databaseService.GetSearchHistory(user.Id, user.NombreUsuario);
 
                 foreach (var item in historyItems)
                 {
-                    Historial.Add(item);
+                    HistorialBusquedas.Add(item);
                 }
             }
             ApplyFilter();
@@ -74,12 +76,12 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(FilterText))
             {
-                FilteredHistorial = new ObservableCollection<BusquedaHistorial>(Historial);
+                FilteredHistorial = new ObservableCollection<BusquedaHistorial>(HistorialBusquedas);
             }
             else
             {
                 var lowerFilter = FilterText.ToLower();
-                var filtered = Historial.Where(h =>
+                var filtered = HistorialBusquedas.Where(h =>
                     (h.TerminoBuscado != null && h.TerminoBuscado.ToLower().Contains(lowerFilter)) ||
                     h.FechaCarga.ToString("dd/MM/yyyy").Contains(lowerFilter)
                 );
@@ -93,12 +95,8 @@ namespace CertiScan.ViewModels
 
             try
             {
-                // Nombre temporal para el visor
                 string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_ReGen_{Guid.NewGuid()}.pdf");
-
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
-
-                // En el historial no tenemos la lista de archivos original, enviamos vacío o un texto genérico
                 List<string> nombresArchivos = new List<string>();
 
                 var infoDB = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
@@ -112,8 +110,7 @@ namespace CertiScan.ViewModels
 
                 _pdfService.GenerarConstancia(tempPath, historyItem.TerminoBuscado, esAprobatoria, nombresArchivos, datosParaPdf);
 
-                // --- CORRECCIÓN CLAVE PARA EL NOMBRE AUTOMÁTICO ---
-                // Le pasamos el término buscado al constructor para que al guardar aparezca "Constancia_NOMBRE_FECHA"
+                // --- NOMBRE AUTOMÁTICO AL GUARDAR ---
                 var viewer = new PdfViewerWindow(tempPath, historyItem.TerminoBuscado);
                 viewer.ShowDialog();
             }
