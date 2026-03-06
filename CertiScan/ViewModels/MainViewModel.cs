@@ -27,6 +27,9 @@ namespace CertiScan.ViewModels
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
         public ObservableCollection<DocumentoViewModel> DocumentosSatMostrados { get; set; }
 
+        // --- 1. ESTO ES LO QUE FALTABA: LA COLECCIÓN DEL HISTORIAL ---
+        public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
+
         // --- MÓDULO UIF ---
         private string _terminoBusqueda = string.Empty;
         public string TerminoBusqueda
@@ -95,6 +98,9 @@ namespace CertiScan.ViewModels
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
             DocumentosSatMostrados = new ObservableCollection<DocumentoViewModel>();
 
+            // --- 2. INICIALIZAR LA LISTA ---
+            HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
+
             CargarPdfCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(false));
             CargarPdfSatCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(true));
             BuscarCommand = new RelayCommand(Buscar);
@@ -106,7 +112,25 @@ namespace CertiScan.ViewModels
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
+
+            // CARGA INICIAL
             LoadAllDocuments();
+            LoadHistorial();
+        }
+
+        // --- 3. MÉTODO PARA RECARGAR EL HISTORIAL DESDE LA BD ---
+        public void LoadHistorial()
+        {
+            // Nota: En tu DatabaseService el método se llama GetSearchHistory
+            var historial = _databaseService.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+
+            Application.Current.Dispatcher.Invoke(() => {
+                HistorialBusquedas.Clear();
+                foreach (var h in historial)
+                {
+                    HistorialBusquedas.Add(h);
+                }
+            });
         }
 
         private void UpdateConstanciaButtonStates(bool realizada)
@@ -126,7 +150,13 @@ namespace CertiScan.ViewModels
                 : string.Empty;
 
             UpdateConstanciaButtonStates(true);
+
+            // GUARDAR EN BD
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
+
+            // --- 4. REFRESCAR AL INSTANTE ---
+            LoadHistorial();
+
             MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias.");
         }
 
@@ -136,11 +166,15 @@ namespace CertiScan.ViewModels
             var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
             ResultadoEncontradoSat = resultados.Count > 0;
             IsReporteSatEnabled = true;
+
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, ResultadoEncontradoSat, SessionService.CurrentUserId);
+
+            // REFRESCAR TAMBIÉN EN SAT
+            LoadHistorial();
+
             MessageBox.Show(ResultadoEncontradoSat ? "¡ALERTA EN SAT!" : "Sin coincidencias en SAT.");
         }
 
-        // --- CORRECCIÓN AQUÍ: Pasar el nombre al Visor ---
         private void GenerarConstancia(bool esAprobatoria)
         {
             try
@@ -162,19 +196,20 @@ namespace CertiScan.ViewModels
 
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
 
-                // ENVIAMOS EL NOMBRE BUSCADO AL CONSTRUCTOR DEL VISOR
+                // --- 5. PASAR NOMBRE PARA EL GUARDADO AUTOMÁTICO ---
                 var viewer = new PdfViewerWindow(tempPath, TerminoBusqueda);
                 viewer.ShowDialog();
             }
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
+        private void RefreshView() { LoadAllDocuments(); LoadHistorial(); }
+        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; IsReporteSatEnabled = false; LoadAllDocuments(); LoadHistorial(); }
+
         private async Task CargarArchivoUniversalAsync(bool esParaSat) { var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "PDF|*.pdf|TXT|*.txt" }; if (ofd.ShowDialog() == true) { await Task.Run(() => ProcesarDocumentoIndividualAsync(ofd.FileName, esParaSat ? "SAT" : "UIF")); LoadAllDocuments(); } }
         private async Task ProcesarDocumentoIndividualAsync(string r, string m) { try { string ext = Path.GetExtension(r).ToLower(); string c = ext == ".pdf" ? _pdfService.ExtraerTextoDePdf(r) : File.ReadAllText(r, Encoding.UTF8); await _databaseService.GuardarDocumentoAsync(Path.GetFileName(r), r, c, SessionService.CurrentUserId, m); } catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); } }
         public void LoadAllDocuments() { var u = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF"); var s = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "SAT"); Application.Current.Dispatcher.Invoke(() => { DocumentosMostrados.Clear(); foreach (var d in u) DocumentosMostrados.Add(new DocumentoViewModel(d)); DocumentosSatMostrados.Clear(); foreach (var d in s) DocumentosSatMostrados.Add(new DocumentoViewModel(d)); }); }
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
         private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
-        private void RefreshView() { LoadAllDocuments(); }
-        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; IsReporteSatEnabled = false; LoadAllDocuments(); }
     }
 }
