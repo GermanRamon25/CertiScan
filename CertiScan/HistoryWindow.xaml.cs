@@ -24,7 +24,7 @@ namespace CertiScan
         public HistoryWindow()
         {
             InitializeComponent();
-            DataContext = new HistoryViewModel();
+           // DataContext = new HistoryViewModel();
         }
 
         private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
