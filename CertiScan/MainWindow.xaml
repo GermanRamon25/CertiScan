@@ -306,7 +306,7 @@
                             <Button Content="Buscar" Width="100" Height="35" Style="{StaticResource ModernButtonStyle}" Background="{StaticResource SatColor}" Command="{Binding BuscarSatCommand}"/>
                             <Button Content="Eliminar PDF" Width="120" Margin="15,0,0,0" Style="{StaticResource EliminarStyle}" Command="{Binding DeletePdfSatCommand}"/>
 
-                            <Button Content="Historial 69-B" Width="120" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" Command="{Binding ShowHistorySatCommand}"/>
+                            <Button Content="Historial 69-B" Width="120" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" Click="VerHistorialSat_Click"/>
 
                             <Button Content="🔄" Width="40" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" Background="Transparent" Foreground="Black" FontSize="18" Command="{Binding RefreshSatCommand}"/>
                         </StackPanel>

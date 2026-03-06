@@ -15,7 +15,8 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
-
+        // AGREGA ESTA PROPIEDAD PARA QUITAR EL ERROR DE COMPILACIÓN
+        public List<string> NombresArchivosActuales { get; set; } = new List<string>();
         // CAMBIO CLAVE: El nombre debe ser HistorialBusquedas para que MainWindow lo encuentre
         public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
 
@@ -97,7 +98,11 @@ namespace CertiScan.ViewModels
             {
                 string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_ReGen_{Guid.NewGuid()}.pdf");
                 bool esAprobatoria = !historyItem.ResultadoEncontrado;
-                List<string> nombresArchivos = new List<string>();
+
+                // SOLUCIÓN: Agregamos un texto descriptivo o recuperamos el contexto
+                List<string> nombresArchivos = new List<string> {
+            "Consulta realizada desde el historial del sistema"
+        };
 
                 var infoDB = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
                 var datosParaPdf = new DatosNotaria
@@ -108,9 +113,9 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {infoDB?.Telefono}"
                 };
 
+                // Ahora nombresArchivos ya no va vacío
                 _pdfService.GenerarConstancia(tempPath, historyItem.TerminoBuscado, esAprobatoria, nombresArchivos, datosParaPdf);
 
-                // --- NOMBRE AUTOMÁTICO AL GUARDAR ---
                 var viewer = new PdfViewerWindow(tempPath, historyItem.TerminoBuscado);
                 viewer.ShowDialog();
             }

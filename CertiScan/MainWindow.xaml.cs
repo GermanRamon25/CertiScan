@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using CertiScan.Services;
 using System;
+using System.Linq;
+using System.Collections.Generic; // Asegúrate de tener esta línea
 
 namespace CertiScan
 {
@@ -49,41 +51,82 @@ namespace CertiScan
         }
 
         // ============================================================
-        // MÉTODO DE HISTORIAL CORREGIDO
+        // HISTORIAL MÓDULO UIF (Solo nombres de personas)
         // ============================================================
         private void VerHistorial_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // 1. Crear ventana y ViewModel
                 HistoryWindow ventanaHistorial = new HistoryWindow();
                 ventanaHistorial.Owner = this;
                 var historyVm = new HistoryViewModel();
 
-                // 2. Traer datos frescos de la base de datos
+                if (DataContext is MainViewModel mainVm)
+                {
+                    historyVm.NombresArchivosActuales = mainVm.DocumentosMostrados.Select(d => d.NombreArchivo).ToList();
+                }
+
                 var db = new DatabaseService();
                 var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
 
-                // 3. Llenar la lista "Historial" (así se llama en tu HistoryViewModel)
-                if (historyVm.HistorialBusquedas != null)
+                if (historyVm.HistorialBusquedas != null && datos != null)
                 {
                     historyVm.HistorialBusquedas.Clear();
-                    if (datos != null)
+                    foreach (var item in datos)
                     {
-                        foreach (var item in datos)
-                        {
-                            historyVm.HistorialBusquedas.Add(item);
-                        }
+                        // FILTRO: Si NO parece un RFC (SAT), lo agregamos a UIF
+                        bool esRfc = item.TerminoBuscado.Trim().Length >= 12 && item.TerminoBuscado.Trim().Length <= 13;
+                        if (!esRfc) historyVm.HistorialBusquedas.Add(item);
                     }
                 }
 
-                // 4. Conectar la ventana con los datos y abrirla
+                ventanaHistorial.Title = "Historial - Búsqueda UIF";
                 ventanaHistorial.DataContext = historyVm;
                 ventanaHistorial.ShowDialog();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar historial: " + ex.Message);
+                MessageBox.Show("Error al cargar historial UIF: " + ex.Message);
+            }
+        }
+
+        // ============================================================
+        // HISTORIAL MÓDULO SAT (Solo RFCs/Empresas)
+        // ============================================================
+        private void VerHistorialSat_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                HistoryWindow ventanaHistorial = new HistoryWindow();
+                ventanaHistorial.Owner = this;
+                var historyVm = new HistoryViewModel();
+
+                if (DataContext is MainViewModel mainVm)
+                {
+                    historyVm.NombresArchivosActuales = mainVm.DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList();
+                }
+
+                var db = new DatabaseService();
+                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+
+                if (historyVm.HistorialBusquedas != null && datos != null)
+                {
+                    historyVm.HistorialBusquedas.Clear();
+                    foreach (var item in datos)
+                    {
+                        // FILTRO: Si parece un RFC (12-13 caracteres), lo agregamos a SAT
+                        bool esRfc = item.TerminoBuscado.Trim().Length >= 12 && item.TerminoBuscado.Trim().Length <= 13;
+                        if (esRfc) historyVm.HistorialBusquedas.Add(item);
+                    }
+                }
+
+                ventanaHistorial.Title = "Historial - Verificación SAT";
+                ventanaHistorial.DataContext = historyVm;
+                ventanaHistorial.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar historial SAT: " + ex.Message);
             }
         }
 
