@@ -21,6 +21,9 @@ namespace CertiScan.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
 
+        // CORRECCIÓN: Declaramos la variable a nivel de clase para que GenerarConstancia pueda leerla
+        private string _fuenteHallazgoUif = string.Empty;
+
         public string NombreUsuarioLogueado { get; }
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
         public ObservableCollection<DocumentoViewModel> DocumentosSatMostrados { get; set; }
@@ -126,7 +129,6 @@ namespace CertiScan.ViewModels
             LoadAllDocuments();
         }
 
-        // MÉTODO CLAVE: Normaliza el texto para que la búsqueda ignore tildes y mayúsculas
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
@@ -146,47 +148,81 @@ namespace CertiScan.ViewModels
             IsDenegadaButtonEnabled = realizada && ResultadoEncontrado;
         }
 
-        // Búsqueda UIF (Se mantiene igual, ya que funciona bien)
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
             var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId, "UIF");
             ResultadoEncontrado = resultados.Count > 0;
+
+            // CORRECCIÓN: Guardamos el nombre del archivo encontrado en la variable de clase
+            _fuenteHallazgoUif = ResultadoEncontrado
+                ? string.Join(", ", resultados.Select(d => d.NombreArchivo))
+                : string.Empty;
+
             UpdateConstanciaButtonStates(true);
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
             MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias en UIF.");
         }
 
-        // CORRECCIÓN: Búsqueda SAT (Ahora funciona igual que la de UIF, buscando en los archivos cargados)
         private void BuscarSat()
         {
-            string nombreBuscado = NormalizarTexto(TerminoBusquedaSat);
-            if (string.IsNullOrWhiteSpace(nombreBuscado)) return;
+            if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
 
-            // Buscamos en los archivos que se han cargado en el módulo SAT
+            // Buscamos en los archivos cargados específicamente para el módulo SAT
             var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
 
             ResultadoEncontradoSat = resultados.Count > 0;
             IsReporteSatEnabled = true;
 
-            // Registramos en historial
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, ResultadoEncontradoSat, SessionService.CurrentUserId);
 
             if (ResultadoEncontradoSat)
             {
-                MessageBox.Show("🚨 ¡ATENCIÓN! El nombre se encuentra en los documentos del Listado 69-B.",
+                MessageBox.Show("🚨 ¡ATENCIÓN! El nombre se encuentra en los documentos del módulo SAT.",
                                 "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
-                MessageBox.Show("✅ El nombre NO se encuentra en los documentos del Listado 69-B.",
+                MessageBox.Show("✅ El nombre NO se encuentra en los documentos del módulo SAT.",
                                 "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
         private void GenerarConstancia(bool esAprobatoria)
         {
-            MessageBox.Show(esAprobatoria ? "Generando Constancia Aprobatoria..." : "Generando Constancia de Hallazgo...");
+            try
+            {
+                if (string.IsNullOrWhiteSpace(TerminoBusqueda))
+                {
+                    MessageBox.Show("Primero debe realizar una búsqueda en el módulo UIF.");
+                    return;
+                }
+
+                string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_UIF_{Guid.NewGuid()}.pdf");
+
+                var infoNotaria = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+                var datosNotaria = new DatosNotaria
+                {
+                    NombreNotario = infoNotaria?.NombreNotario ?? "No especificado",
+                    NumeroNotaria = infoNotaria?.NumeroNotaria ?? "0",
+                    DireccionCompleta = infoNotaria?.Direccion ?? "Sinaloa, México",
+                    DatosContacto = $"Tel: {infoNotaria?.Telefono} | Email: {infoNotaria?.Email}"
+                };
+
+                // Ahora _fuenteHallazgoUif es reconocida porque está declarada arriba
+                List<string> archivos = esAprobatoria
+                    ? new List<string>()
+                    : new List<string> { _fuenteHallazgoUif };
+
+                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, archivos, datosNotaria);
+
+                var viewer = new PdfViewerWindow(tempPath);
+                viewer.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al preparar la constancia UIF: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
@@ -195,7 +231,6 @@ namespace CertiScan.ViewModels
             if (openFileDialog.ShowDialog() == true)
             {
                 string ruta = openFileDialog.FileName;
-                // Ahora ambos cargan archivos individuales (PDF/TXT)
                 await Task.Run(() => ProcesarDocumentoIndividualAsync(ruta, esParaSat ? "SAT" : "UIF"));
                 LoadAllDocuments();
             }
@@ -208,8 +243,6 @@ namespace CertiScan.ViewModels
                 string extension = Path.GetExtension(ruta).ToLower();
                 string contenido = extension == ".pdf" ? _pdfService.ExtraerTextoDePdf(ruta) : File.ReadAllText(ruta, Encoding.UTF8);
 
-                // No truncamos el contenido para la base de datos para que la búsqueda sea completa, 
-                // pero si es muy pesado para la UI, puedes dejar el límite de 200,000 caracteres solo para la vista.
                 await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenido, SessionService.CurrentUserId, modulo);
             }
             catch (Exception ex)
