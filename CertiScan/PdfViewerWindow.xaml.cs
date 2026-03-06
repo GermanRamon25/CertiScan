@@ -2,64 +2,64 @@
 using System;
 using System.IO;
 using System.Windows;
-using Microsoft.Web.WebView2.Core; // Se mantiene, necesario para CoreWebView2NavigationCompletedEventArgs
+using Microsoft.Web.WebView2.Core;
+using System.Text.RegularExpressions; // Necesario para limpiar el nombre
 
 namespace CertiScan
 {
     public partial class PdfViewerWindow : Window
     {
         private readonly string _tempPdfPath;
+        // Nueva propiedad para recibir el nombre del buscado
+        public string TerminoBuscado { get; set; } = "SIN_NOMBRE";
 
-        public PdfViewerWindow(string pdfPath)
+        public PdfViewerWindow(string pdfPath, string nombrePersona = "")
         {
             InitializeComponent();
             _tempPdfPath = pdfPath;
+            TerminoBuscado = nombrePersona; // Recibimos el nombre desde el MainViewModel
 
-            // Llama al nuevo método asíncrono para inicializar WebView2 de forma segura
             InitializeWebView(pdfPath);
         }
 
-        // --- MÉTODO NUEVO: Inicialización Asíncrona para compatibilidad con Windows 8.1 ---
         private async void InitializeWebView(string pdfPath)
         {
             try
             {
-                // 1. Asegurarse que el WebView2 esté inicializado antes de usarlo
                 await webView.EnsureCoreWebView2Async(null);
-
-                // 2. Mover la lógica de carga aquí
                 webView.NavigationCompleted += WebView_NavigationCompleted;
                 webView.CoreWebView2.Navigate(new Uri(pdfPath).AbsoluteUri);
             }
             catch (Exception ex)
             {
-                // Capturar errores de inicialización (comunes en Win 8.1 sin el Runtime o si hay fallas de dependencia)
-                MessageBox.Show(
-                    $"Error crítico al inicializar el visor de PDF (WebView2).\n" +
-                    $"Asegúrese de tener instalado el Microsoft Edge WebView2 Runtime y las librerías C++.\n\n" +
-                    $"Detalle: {ex.Message}",
-                    "Error de Compatibilidad",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
-                this.Close(); // Cerrar la ventana si el visor no puede funcionar
+                MessageBox.Show($"Error crítico al inicializar el visor: {ex.Message}", "Error");
+                this.Close();
             }
         }
-        // --- FIN DEL MÉTODO NUEVO ---
 
         private async void PrintButton_Click(object sender, RoutedEventArgs e)
         {
-            // Ejecuta el diálogo de impresión del navegador
             await webView.ExecuteScriptAsync("window.print();");
         }
 
+        // --- CORRECCIÓN: GUARDADO AUTOMÁTICO CON NOMBRE Y FECHA ---
         private void SaveAsButton_Click(object sender, RoutedEventArgs e)
         {
+            // 1. Limpiamos el nombre de espacios o caracteres raros
+            string nombreLimpio = TerminoBuscado.Replace(" ", "_").ToUpper();
+            if (string.IsNullOrWhiteSpace(nombreLimpio)) nombreLimpio = "CONSULTA";
+
+            // 2. Generamos Fecha y Hora (ej: 06032026_1045)
+            string fechaHora = DateTime.Now.ToString("ddMMyyyy_HHmm");
+
+            // 3. Formato final: Constancia_NOMBRE_FECHA_HORA.pdf
+            string nombreSugerido = $"Constancia_{nombreLimpio}_{fechaHora}.pdf";
+
             var saveFileDialog = new SaveFileDialog
             {
                 Filter = "Archivo PDF (.pdf)|*.pdf",
                 Title = "Guardar Constancia Como...",
-                FileName = Path.GetFileName(_tempPdfPath)
+                FileName = nombreSugerido // <--- ESTO PONE EL NOMBRE AUTOMÁTICO
             };
 
             if (saveFileDialog.ShowDialog() == true)
@@ -67,38 +67,28 @@ namespace CertiScan
                 try
                 {
                     File.Copy(_tempPdfPath, saveFileDialog.FileName, true);
-                    MessageBox.Show($"Constancia guardada exitosamente en:\n{saveFileDialog.FileName}", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"Constancia guardada exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error al guardar el archivo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Error al guardar: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
         private void WebView_NavigationCompleted(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
         {
-            // Opcional: Ocultar la barra de herramientas que muestra el navegador en el PDF
             webView.ExecuteScriptAsync("document.querySelector('viewer-pdf-toolbar').shadowRoot.querySelector('#toolbar').style.display = 'none';");
         }
 
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
-            // Limpia y borra el archivo temporal al cerrar la ventana
             try
             {
-                if (File.Exists(_tempPdfPath))
-                {
-                    File.Delete(_tempPdfPath);
-                }
+                if (File.Exists(_tempPdfPath)) File.Delete(_tempPdfPath);
             }
-            catch (Exception ex)
-            {
-                // Manejar el error si el archivo no se puede borrar (poco probable)
-                Console.WriteLine($"No se pudo borrar el archivo temporal: {ex.Message}");
-            }
+            catch { }
         }
     }
-
 }

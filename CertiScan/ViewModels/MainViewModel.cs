@@ -21,7 +21,6 @@ namespace CertiScan.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
 
-        // CORRECCIÓN: Declaramos la variable a nivel de clase para que GenerarConstancia pueda leerla
         private string _fuenteHallazgoUif = string.Empty;
 
         public string NombreUsuarioLogueado { get; }
@@ -49,20 +48,13 @@ namespace CertiScan.ViewModels
         public DocumentoViewModel SelectedDocumento
         {
             get => _selectedDocumento;
-            set
-            {
-                if (SetProperty(ref _selectedDocumento, value))
-                {
-                    ContenidoDocumento = value != null ? _databaseService.GetDocumentoContent(value.Id) : string.Empty;
-                    DeletePdfCommand?.NotifyCanExecuteChanged();
-                }
-            }
+            set { if (SetProperty(ref _selectedDocumento, value)) { ContenidoDocumento = value != null ? _databaseService.GetDocumentoContent(value.Id) : string.Empty; DeletePdfCommand?.NotifyCanExecuteChanged(); } }
         }
 
         private string _contenidoDocumento;
         public string ContenidoDocumento { get => _contenidoDocumento; set => SetProperty(ref _contenidoDocumento, value); }
 
-        // --- MÓDULO SAT (69-B) ---
+        // --- MÓDULO SAT ---
         private string _terminoBusquedaSat = string.Empty;
         public string TerminoBusquedaSat
         {
@@ -76,24 +68,16 @@ namespace CertiScan.ViewModels
         private bool _isReporteSatEnabled;
         public bool IsReporteSatEnabled { get => _isReporteSatEnabled; set => SetProperty(ref _isReporteSatEnabled, value); }
 
-        private string _contenidoDocumentoSat;
-        public string ContenidoDocumentoSat { get => _contenidoDocumentoSat; set => SetProperty(ref _contenidoDocumentoSat, value); }
-
         private DocumentoViewModel _selectedDocumentoSat;
         public DocumentoViewModel SelectedDocumentoSat
         {
             get => _selectedDocumentoSat;
-            set
-            {
-                if (SetProperty(ref _selectedDocumentoSat, value))
-                {
-                    ContenidoDocumentoSat = value != null ? _databaseService.GetDocumentoContent(value.Id) : string.Empty;
-                    DeletePdfSatCommand?.NotifyCanExecuteChanged();
-                }
-            }
+            set { if (SetProperty(ref _selectedDocumentoSat, value)) { ContenidoDocumentoSat = value != null ? _databaseService.GetDocumentoContent(value.Id) : string.Empty; DeletePdfSatCommand?.NotifyCanExecuteChanged(); } }
         }
 
-        // --- COMANDOS ---
+        private string _contenidoDocumentoSat;
+        public string ContenidoDocumentoSat { get => _contenidoDocumentoSat; set => SetProperty(ref _contenidoDocumentoSat, value); }
+
         public IAsyncRelayCommand CargarPdfCommand { get; }
         public IAsyncRelayCommand CargarPdfSatCommand { get; }
         public IRelayCommand BuscarCommand { get; }
@@ -113,33 +97,16 @@ namespace CertiScan.ViewModels
 
             CargarPdfCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(false));
             CargarPdfSatCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(true));
-
             BuscarCommand = new RelayCommand(Buscar);
             BuscarSatCommand = new RelayCommand(BuscarSat);
-
             DeletePdfCommand = new RelayCommand(DeletePdf, () => SelectedDocumento != null);
             DeletePdfSatCommand = new RelayCommand(DeletePdfSat, () => SelectedDocumentoSat != null);
-
             RefreshCommand = new RelayCommand(RefreshView);
             RefreshSatCommand = new RelayCommand(RefreshViewSat);
-
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
             LoadAllDocuments();
-        }
-
-        private string NormalizarTexto(string texto)
-        {
-            if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
-            var normalizedString = texto.Normalize(NormalizationForm.FormD);
-            var stringBuilder = new StringBuilder();
-            foreach (var c in normalizedString)
-            {
-                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
-                if (unicodeCategory != UnicodeCategory.NonSpacingMark) stringBuilder.Append(c);
-            }
-            return stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLower().Trim();
         }
 
         private void UpdateConstanciaButtonStates(bool realizada)
@@ -154,135 +121,60 @@ namespace CertiScan.ViewModels
             var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId, "UIF");
             ResultadoEncontrado = resultados.Count > 0;
 
-            // CORRECCIÓN: Guardamos el nombre del archivo encontrado en la variable de clase
             _fuenteHallazgoUif = ResultadoEncontrado
                 ? string.Join(", ", resultados.Select(d => d.NombreArchivo))
                 : string.Empty;
 
             UpdateConstanciaButtonStates(true);
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
-            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias en UIF.");
+            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias.");
         }
 
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-
-            // Buscamos en los archivos cargados específicamente para el módulo SAT
             var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
-
             ResultadoEncontradoSat = resultados.Count > 0;
             IsReporteSatEnabled = true;
-
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, ResultadoEncontradoSat, SessionService.CurrentUserId);
-
-            if (ResultadoEncontradoSat)
-            {
-                MessageBox.Show("🚨 ¡ATENCIÓN! El nombre se encuentra en los documentos del módulo SAT.",
-                                "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            else
-            {
-                MessageBox.Show("✅ El nombre NO se encuentra en los documentos del módulo SAT.",
-                                "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            MessageBox.Show(ResultadoEncontradoSat ? "¡ALERTA EN SAT!" : "Sin coincidencias en SAT.");
         }
 
+        // --- CORRECCIÓN AQUÍ: Pasar el nombre al Visor ---
         private void GenerarConstancia(bool esAprobatoria)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(TerminoBusqueda))
-                {
-                    MessageBox.Show("Primero debe realizar una búsqueda en el módulo UIF.");
-                    return;
-                }
+                if (string.IsNullOrWhiteSpace(TerminoBusqueda)) { MessageBox.Show("Primero busque en UIF."); return; }
 
-                string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_UIF_{Guid.NewGuid()}.pdf");
+                string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_Temp_{Guid.NewGuid()}.pdf");
+                var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
 
-                var infoNotaria = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datosNotaria = new DatosNotaria
+                var datos = new DatosNotaria
                 {
-                    NombreNotario = infoNotaria?.NombreNotario ?? "No especificado",
-                    NumeroNotaria = infoNotaria?.NumeroNotaria ?? "0",
-                    DireccionCompleta = infoNotaria?.Direccion ?? "Sinaloa, México",
-                    DatosContacto = $"Tel: {infoNotaria?.Telefono} | Email: {infoNotaria?.Email}"
+                    NombreNotario = info?.NombreNotario ?? "Dato No Configurado",
+                    NumeroNotaria = info?.NumeroNotaria ?? "0",
+                    DireccionCompleta = info?.Direccion ?? "Sinaloa, México",
+                    DatosContacto = $"Tel: {info?.Telefono} | Email: {info?.Email}"
                 };
 
-                // Ahora _fuenteHallazgoUif es reconocida porque está declarada arriba
-                List<string> archivos = esAprobatoria
-                    ? new List<string>()
-                    : new List<string> { _fuenteHallazgoUif };
+                List<string> listaArchivos = esAprobatoria ? new List<string>() : new List<string> { _fuenteHallazgoUif };
 
-                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, archivos, datosNotaria);
+                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
 
-                var viewer = new PdfViewerWindow(tempPath);
+                // ENVIAMOS EL NOMBRE BUSCADO AL CONSTRUCTOR DEL VISOR
+                var viewer = new PdfViewerWindow(tempPath, TerminoBusqueda);
                 viewer.ShowDialog();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al preparar la constancia UIF: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
-        private async Task CargarArchivoUniversalAsync(bool esParaSat)
-        {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog { Filter = "Archivos PDF (*.pdf)|*.pdf|Archivos de Texto (*.txt)|*.txt" };
-            if (openFileDialog.ShowDialog() == true)
-            {
-                string ruta = openFileDialog.FileName;
-                await Task.Run(() => ProcesarDocumentoIndividualAsync(ruta, esParaSat ? "SAT" : "UIF"));
-                LoadAllDocuments();
-            }
-        }
-
-        private async Task ProcesarDocumentoIndividualAsync(string ruta, string modulo)
-        {
-            try
-            {
-                string extension = Path.GetExtension(ruta).ToLower();
-                string contenido = extension == ".pdf" ? _pdfService.ExtraerTextoDePdf(ruta) : File.ReadAllText(ruta, Encoding.UTF8);
-
-                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenido, SessionService.CurrentUserId, modulo);
-            }
-            catch (Exception ex)
-            {
-                Application.Current.Dispatcher.Invoke(() => MessageBox.Show($"Error al cargar archivo: {ex.Message}"));
-            }
-        }
-
-        public void LoadAllDocuments()
-        {
-            var docsUif = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
-            var docsSat = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "SAT");
-
-            Application.Current.Dispatcher.Invoke(() => {
-                DocumentosMostrados.Clear();
-                foreach (var d in docsUif) DocumentosMostrados.Add(new DocumentoViewModel(d));
-
-                DocumentosSatMostrados.Clear();
-                foreach (var d in docsSat) DocumentosSatMostrados.Add(new DocumentoViewModel(d));
-            });
-        }
-
+        private async Task CargarArchivoUniversalAsync(bool esParaSat) { var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "PDF|*.pdf|TXT|*.txt" }; if (ofd.ShowDialog() == true) { await Task.Run(() => ProcesarDocumentoIndividualAsync(ofd.FileName, esParaSat ? "SAT" : "UIF")); LoadAllDocuments(); } }
+        private async Task ProcesarDocumentoIndividualAsync(string r, string m) { try { string ext = Path.GetExtension(r).ToLower(); string c = ext == ".pdf" ? _pdfService.ExtraerTextoDePdf(r) : File.ReadAllText(r, Encoding.UTF8); await _databaseService.GuardarDocumentoAsync(Path.GetFileName(r), r, c, SessionService.CurrentUserId, m); } catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); } }
+        public void LoadAllDocuments() { var u = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF"); var s = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "SAT"); Application.Current.Dispatcher.Invoke(() => { DocumentosMostrados.Clear(); foreach (var d in u) DocumentosMostrados.Add(new DocumentoViewModel(d)); DocumentosSatMostrados.Clear(); foreach (var d in s) DocumentosSatMostrados.Add(new DocumentoViewModel(d)); }); }
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
-
-        private void DeletePdfSat()
-        {
-            if (SelectedDocumentoSat != null)
-            {
-                _databaseService.DeleteDocument(SelectedDocumentoSat.Id);
-                RefreshViewSat();
-            }
-        }
-
+        private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
         private void RefreshView() { LoadAllDocuments(); }
-
-        private void RefreshViewSat()
-        {
-            TerminoBusquedaSat = string.Empty;
-            IsReporteSatEnabled = false;
-            LoadAllDocuments();
-        }
+        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; IsReporteSatEnabled = false; LoadAllDocuments(); }
     }
 }

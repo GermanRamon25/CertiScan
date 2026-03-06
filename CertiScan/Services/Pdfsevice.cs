@@ -140,11 +140,11 @@ namespace CertiScan.Services
                                 }
                             });
 
-                            // --- EL RENGLÓN DEL ARCHIVO (Solo si SI se encontró) ---
-                            // Se muestra como un párrafo de texto normal debajo del resultado
-                            if (!esAprobatoria && nombresArchivosEncontrados.Any())
+                            // --- RENGLÓN DEL ARCHIVO (Sin cuadros, solo texto) ---
+                            if (!esAprobatoria && nombresArchivosEncontrados != null && nombresArchivosEncontrados.Any())
                             {
-                                col.Item().PaddingTop(15).Text(text =>
+                                // Usamos un Padding pequeño para que quede justo debajo, como un renglón más
+                                col.Item().PaddingTop(10).Text(text =>
                                 {
                                     text.Span("La coincidencia fue encontrada en el/los siguiente(s) archivo(s) UIF: ").Bold();
                                     text.Span(string.Join(", ", nombresArchivosEncontrados));
