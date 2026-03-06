@@ -24,6 +24,9 @@ namespace CertiScan.ViewModels
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
         public ObservableCollection<DocumentoViewModel> DocumentosSatMostrados { get; set; }
 
+        // --- CONEXIÓN DEL HISTORIAL ---
+        public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
+
         // --- MÓDULO UIF ---
         private string _terminoBusqueda = string.Empty;
         public string TerminoBusqueda
@@ -107,6 +110,9 @@ namespace CertiScan.ViewModels
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
             DocumentosSatMostrados = new ObservableCollection<DocumentoViewModel>();
 
+            // Inicializar historial
+            HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
+
             CargarPdfCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(false));
             CargarPdfSatCommand = new AsyncRelayCommand(() => CargarArchivoUniversalAsync(true));
             BuscarCommand = new RelayCommand(Buscar);
@@ -118,7 +124,22 @@ namespace CertiScan.ViewModels
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
+
+            // Cargar datos iniciales al arrancar
             LoadAllDocuments();
+            LoadHistorial();
+        }
+
+        // MÉTODO PARA RECARGAR EL HISTORIAL DESDE LA BD
+        public void LoadHistorial()
+        {
+            // Usamos el método exacto que definiste en DatabaseService
+            var historial = _databaseService.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+
+            Application.Current.Dispatcher.Invoke(() => {
+                HistorialBusquedas.Clear();
+                foreach (var h in historial) HistorialBusquedas.Add(h);
+            });
         }
 
         private void UpdateConstanciaButtonStates(bool realizada)
@@ -136,18 +157,15 @@ namespace CertiScan.ViewModels
             var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId, "UIF");
             ResultadoEncontrado = resultados.Count > 0;
 
-            if (ResultadoEncontrado)
-            {
-                // Guardamos el nombre del archivo donde se encontró el nombre
-                _fuenteHallazgoUif = string.Join(", ", resultados.Select(d => d.NombreArchivo));
-            }
-            else
-            {
-                _fuenteHallazgoUif = string.Empty;
-            }
+            _fuenteHallazgoUif = ResultadoEncontrado
+                ? string.Join(", ", resultados.Select(d => d.NombreArchivo))
+                : string.Empty;
 
             UpdateConstanciaButtonStates(true);
+
+            // REGISTRAMOS Y CARGAMOS HISTORIAL INMEDIATAMENTE
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
+            LoadHistorial();
 
             MessageBox.Show(ResultadoEncontrado
                 ? "¡COINCIDENCIA ENCONTRADA EN UIF!"
@@ -163,25 +181,20 @@ namespace CertiScan.ViewModels
             ResultadoEncontradoSat = resultados.Rows.Count > 0;
             IsReporteSatEnabled = true;
 
+            // REGISTRAMOS Y CARGAMOS HISTORIAL PARA SAT TAMBIÉN
             _databaseService.RegistrarBusqueda(terminoLimpio, ResultadoEncontradoSat, SessionService.CurrentUserId);
+            LoadHistorial();
 
             if (ResultadoEncontradoSat)
             {
-                string rfc = resultados.Rows[0]["RFC"].ToString();
-                string nombre = resultados.Rows[0]["NombreContribuyente"].ToString();
-                string situacion = resultados.Rows[0]["Situacion"].ToString();
-
-                MessageBox.Show($"¡ALERTA! Coincidencia en listas negras (69-B):\n\nRFC: {rfc}\nNombre: {nombre}\nSituación: {situacion}",
-                                "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"¡ALERTA! Coincidencia en listas negras (69-B)", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
-                MessageBox.Show("Sin coincidencias. El contribuyente no se encuentra en las listas del 69-B (Limpio).",
-                                "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Sin coincidencias (Limpio).", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
-        // --- CORRECCIÓN: GENERAR CONSTANCIA IGUAL A LA CAPTURA ---
         private void GenerarConstancia(bool esAprobatoria)
         {
             try
@@ -208,13 +221,7 @@ namespace CertiScan.ViewModels
                     ? new List<string>()
                     : new List<string> { _fuenteHallazgoUif };
 
-                _pdfService.GenerarConstancia(
-                    tempPath,
-                    TerminoBusqueda,
-                    esAprobatoria,
-                    archivos,
-                    datosNotaria
-                );
+                _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, archivos, datosNotaria);
 
                 var viewer = new PdfViewerWindow(tempPath);
                 viewer.ShowDialog();
@@ -320,12 +327,19 @@ namespace CertiScan.ViewModels
 
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
         private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
-        private void RefreshView() { LoadAllDocuments(); }
+
+        private void RefreshView()
+        {
+            LoadAllDocuments();
+            LoadHistorial();
+        }
+
         private void RefreshViewSat()
         {
             TerminoBusquedaSat = string.Empty;
             IsReporteSatEnabled = false;
             LoadAllDocuments();
+            LoadHistorial();
         }
     }
 }
