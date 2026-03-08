@@ -15,9 +15,10 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
-        // AGREGA ESTA PROPIEDAD PARA QUITAR EL ERROR DE COMPILACIÓN
+        // NUEVO: Agregamos el servicio del SAT
+        private readonly PdfSatService _pdfSatService;
+
         public List<string> NombresArchivosActuales { get; set; } = new List<string>();
-        // CAMBIO CLAVE: El nombre debe ser HistorialBusquedas para que MainWindow lo encuentre
         public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
 
         private string _filterText;
@@ -44,20 +45,19 @@ namespace CertiScan.ViewModels
         {
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
+            // Inicializamos el servicio SAT
+            _pdfSatService = new PdfSatService();
 
-            // INICIALIZACIÓN (Esto quita el error del .Clear() en MainWindow)
             HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
             FilteredHistorial = new ObservableCollection<BusquedaHistorial>();
 
             RegenerateCertificateCommand = new RelayCommand<BusquedaHistorial>(RegenerateCertificate);
 
-            // Carga inicial al abrir la ventana
             LoadHistory();
         }
 
         public void LoadHistory()
         {
-            // Ahora .Clear() no dará error porque la lista ya se creó en el constructor arriba
             HistorialBusquedas.Clear();
             var user = SessionService.UsuarioLogueado;
 
@@ -97,12 +97,13 @@ namespace CertiScan.ViewModels
             try
             {
                 string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_ReGen_{Guid.NewGuid()}.pdf");
-                bool esAprobatoria = !historyItem.ResultadoEncontrado;
 
-                // SOLUCIÓN: Agregamos un texto descriptivo o recuperamos el contexto
-                List<string> nombresArchivos = new List<string> {
-            "Consulta realizada desde el historial del sistema"
-        };
+                // Usamos la lista de archivos que pasamos desde la ventana principal
+                List<string> nombresArchivos = NombresArchivosActuales;
+                if (nombresArchivos == null || nombresArchivos.Count == 0)
+                {
+                    nombresArchivos = new List<string> { "Consulta realizada desde el historial del sistema" };
+                }
 
                 var infoDB = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
                 var datosParaPdf = new DatosNotaria
@@ -113,8 +114,20 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {infoDB?.Telefono}"
                 };
 
-                // Ahora nombresArchivos ya no va vacío
-                _pdfService.GenerarConstancia(tempPath, historyItem.TerminoBuscado, esAprobatoria, nombresArchivos, datosParaPdf);
+                // --- LÓGICA DE DISTINCIÓN ENTRE UIF Y SAT ---
+                if (historyItem.TerminoBuscado.StartsWith("SAT: "))
+                {
+                    // Es un reporte del SAT
+                    string rfcLimpio = historyItem.TerminoBuscado.Replace("SAT: ", "");
+                    // En el SAT, "esLimpio" es lo opuesto a "ResultadoEncontrado"
+                    _pdfSatService.GenerarReporteSat(tempPath, rfcLimpio, !historyItem.ResultadoEncontrado, nombresArchivos, datosParaPdf);
+                }
+                else
+                {
+                    // Es una constancia de la UIF
+                    bool esAprobatoria = !historyItem.ResultadoEncontrado;
+                    _pdfService.GenerarConstancia(tempPath, historyItem.TerminoBuscado, esAprobatoria, nombresArchivos, datosParaPdf);
+                }
 
                 var viewer = new PdfViewerWindow(tempPath, historyItem.TerminoBuscado);
                 viewer.ShowDialog();

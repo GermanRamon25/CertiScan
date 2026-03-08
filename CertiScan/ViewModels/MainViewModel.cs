@@ -17,6 +17,8 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
+        // --- NUEVO SERVICIO ---
+        private readonly PdfSatService _pdfSatService;
 
         private string _fuenteHallazgoUif = string.Empty;
 
@@ -24,7 +26,6 @@ namespace CertiScan.ViewModels
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
         public ObservableCollection<DocumentoViewModel> DocumentosSatMostrados { get; set; }
 
-        // --- COLECCIONES SEPARADAS PARA EVITAR MEZCLAS ---
         public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
 
         // --- MÓDULO UIF ---
@@ -84,11 +85,16 @@ namespace CertiScan.ViewModels
         public IRelayCommand RefreshCommand { get; }
         public IRelayCommand RefreshSatCommand { get; }
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
+        // --- NUEVO COMANDO SAT ---
+        public IRelayCommand<bool> GenerarReporteSatCommand { get; }
 
         public MainViewModel()
         {
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
+            // INICIALIZACIÓN
+            _pdfSatService = new PdfSatService();
+
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
             DocumentosSatMostrados = new ObservableCollection<DocumentoViewModel>();
             HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
@@ -102,6 +108,8 @@ namespace CertiScan.ViewModels
             RefreshCommand = new RelayCommand(RefreshView);
             RefreshSatCommand = new RelayCommand(RefreshViewSat);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
+            // VINCULAR COMANDO
+            GenerarReporteSatCommand = new RelayCommand<bool>(GenerarReporteSat);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
 
@@ -135,7 +143,6 @@ namespace CertiScan.ViewModels
 
             UpdateConstanciaButtonStates(true);
 
-            // GUARDAR CON PREFIJO PARA SEPARAR
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
             LoadHistorial();
 
@@ -146,12 +153,10 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
 
-            // Lógica corregida: Para que el historial lo detecte como SAT, usamos un prefijo o detectamos por longitud
             var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
             bool hallazgo = resultados.Count > 0;
             IsReporteSatEnabled = true;
 
-            // Registramos con marca para que el historial lo filtre
             _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId);
             LoadHistorial();
 
@@ -175,7 +180,6 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {info?.Telefono}"
                 };
 
-                // Capturamos los nombres de archivos cargados actualmente para que aparezcan en el PDF
                 List<string> listaArchivos = DocumentosMostrados.Select(d => d.NombreArchivo).ToList();
 
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
@@ -184,6 +188,36 @@ namespace CertiScan.ViewModels
                 viewer.ShowDialog();
             }
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+        }
+
+        // --- MÉTODO PARA GENERAR REPORTE SAT ---
+        private void GenerarReporteSat(bool esLimpio)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
+
+                string tempPath = Path.Combine(Path.GetTempPath(), $"Reporte_SAT_{Guid.NewGuid()}.pdf");
+                var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
+
+                var datos = new DatosNotaria
+                {
+                    NombreNotario = info?.NombreNotario ?? "No Configurado",
+                    NumeroNotaria = info?.NumeroNotaria ?? "0",
+                    DireccionCompleta = info?.Direccion ?? "No Configurada",
+                    DatosContacto = $"Tel: {info?.Telefono}"
+                };
+
+                // Tomamos archivos específicos del módulo SAT
+                List<string> archivos = DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList();
+
+                // LLAMADA AL NUEVO SERVICIO
+                _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
+
+                var viewer = new PdfViewerWindow(tempPath, TerminoBusquedaSat);
+                viewer.ShowDialog();
+            }
+            catch (Exception ex) { MessageBox.Show("Error SAT: " + ex.Message); }
         }
 
         private void RefreshView() { LoadAllDocuments(); LoadHistorial(); }
