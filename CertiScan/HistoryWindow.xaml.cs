@@ -13,7 +13,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using CertiScan.ViewModels;
 
-
 namespace CertiScan
 {
     /// <summary>
@@ -21,20 +20,25 @@ namespace CertiScan
     /// </summary>
     public partial class HistoryWindow : Window
     {
-        public HistoryWindow()
+        // Constructor modificado para recibir el módulo
+        public HistoryWindow(string modulo)
         {
             InitializeComponent();
-           // DataContext = new HistoryViewModel();
+
+            // Creamos el ViewModel y le pedimos que cargue los datos del módulo enviado
+            var viewModel = new HistoryViewModel();
+            viewModel.LoadHistory(modulo);
+
+            this.DataContext = viewModel;
         }
 
         private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-
         }
-        // Añade esto dentro de la clase HistoryWindow
+
         private void Cerrar_Click(object sender, RoutedEventArgs e)
         {
-            this.Close(); // Esto cerrará la ventana cuando hagas clic en la X
+            this.Close();
         }
     }
 }

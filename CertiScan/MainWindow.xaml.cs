@@ -57,31 +57,18 @@ namespace CertiScan
         {
             try
             {
-                HistoryWindow ventanaHistorial = new HistoryWindow();
+                // CORRECCIÓN: Ahora pasamos "UIF" al constructor de la ventana
+                HistoryWindow ventanaHistorial = new HistoryWindow("UIF");
                 ventanaHistorial.Owner = this;
-                var historyVm = new HistoryViewModel();
 
-                if (DataContext is MainViewModel mainVm)
+                // El DataContext ya se asigna dentro del constructor de HistoryWindow, 
+                // pero si necesitas pasar los archivos actuales lo hacemos así:
+                if (ventanaHistorial.DataContext is HistoryViewModel historyVm && DataContext is MainViewModel mainVm)
                 {
                     historyVm.NombresArchivosActuales = mainVm.DocumentosMostrados.Select(d => d.NombreArchivo).ToList();
                 }
 
-                var db = new DatabaseService();
-                // CORRECCIÓN: Se agrega el parámetro "UIF"
-                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName, "UIF");
-
-                if (historyVm.HistorialBusquedas != null && datos != null)
-                {
-                    historyVm.HistorialBusquedas.Clear();
-                    foreach (var item in datos)
-                    {
-                        // Ya no necesitas filtrar manualmente por longitud, la BD ya lo trae separado
-                        historyVm.HistorialBusquedas.Add(item);
-                    }
-                }
-
                 ventanaHistorial.Title = "Historial - Búsqueda UIF";
-                ventanaHistorial.DataContext = historyVm;
                 ventanaHistorial.ShowDialog();
             }
             catch (Exception ex)
@@ -97,31 +84,16 @@ namespace CertiScan
         {
             try
             {
-                HistoryWindow ventanaHistorial = new HistoryWindow();
+                // CORRECCIÓN: Ahora pasamos "SAT" al constructor de la ventana
+                HistoryWindow ventanaHistorial = new HistoryWindow("SAT");
                 ventanaHistorial.Owner = this;
-                var historyVm = new HistoryViewModel();
 
-                if (DataContext is MainViewModel mainVm)
+                if (ventanaHistorial.DataContext is HistoryViewModel historyVm && DataContext is MainViewModel mainVm)
                 {
                     historyVm.NombresArchivosActuales = mainVm.DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList();
                 }
 
-                var db = new DatabaseService();
-                // CORRECCIÓN: Se agrega el parámetro "SAT"
-                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName, "SAT");
-
-                if (historyVm.HistorialBusquedas != null && datos != null)
-                {
-                    historyVm.HistorialBusquedas.Clear();
-                    foreach (var item in datos)
-                    {
-                        // Ya no necesitas filtrar manualmente por longitud
-                        historyVm.HistorialBusquedas.Add(item);
-                    }
-                }
-
                 ventanaHistorial.Title = "Historial - Verificación SAT";
-                ventanaHistorial.DataContext = historyVm;
                 ventanaHistorial.ShowDialog();
             }
             catch (Exception ex)
