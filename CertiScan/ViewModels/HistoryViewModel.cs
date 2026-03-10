@@ -15,7 +15,6 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
-        // NUEVO: Agregamos el servicio del SAT
         private readonly PdfSatService _pdfSatService;
 
         public List<string> NombresArchivosActuales { get; set; } = new List<string>();
@@ -45,7 +44,6 @@ namespace CertiScan.ViewModels
         {
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
-            // Inicializamos el servicio SAT
             _pdfSatService = new PdfSatService();
 
             HistorialBusquedas = new ObservableCollection<BusquedaHistorial>();
@@ -53,17 +51,19 @@ namespace CertiScan.ViewModels
 
             RegenerateCertificateCommand = new RelayCommand<BusquedaHistorial>(RegenerateCertificate);
 
-            LoadHistory();
+            // Nota: El historial se cargará cuando se asigne el módulo desde la View
         }
 
-        public void LoadHistory()
+        // CORRECCIÓN: Ahora el método recibe el módulo para filtrar correctamente
+        public void LoadHistory(string tipoModulo)
         {
             HistorialBusquedas.Clear();
             var user = SessionService.UsuarioLogueado;
 
             if (user != null)
             {
-                var historyItems = _databaseService.GetSearchHistory(user.Id, user.NombreUsuario);
+                // Se agrega el parámetro tipoModulo requerido por el DatabaseService corregido
+                var historyItems = _databaseService.GetSearchHistory(user.Id, user.NombreUsuario, tipoModulo);
 
                 foreach (var item in historyItems)
                 {
@@ -98,7 +98,6 @@ namespace CertiScan.ViewModels
             {
                 string tempPath = Path.Combine(Path.GetTempPath(), $"CertiScan_ReGen_{Guid.NewGuid()}.pdf");
 
-                // Usamos la lista de archivos que pasamos desde la ventana principal
                 List<string> nombresArchivos = NombresArchivosActuales;
                 if (nombresArchivos == null || nombresArchivos.Count == 0)
                 {
@@ -114,17 +113,15 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {infoDB?.Telefono}"
                 };
 
-                // --- LÓGICA DE DISTINCIÓN ENTRE UIF Y SAT ---
-                if (historyItem.TerminoBuscado.StartsWith("SAT: "))
+                // Lógica mejorada: usamos la nueva propiedad 'Modulo' del historyItem si está disponible
+                // o mantenemos tu lógica de prefijo "SAT: "
+                if (historyItem.Modulo == "SAT" || historyItem.TerminoBuscado.StartsWith("SAT: "))
                 {
-                    // Es un reporte del SAT
                     string rfcLimpio = historyItem.TerminoBuscado.Replace("SAT: ", "");
-                    // En el SAT, "esLimpio" es lo opuesto a "ResultadoEncontrado"
                     _pdfSatService.GenerarReporteSat(tempPath, rfcLimpio, !historyItem.ResultadoEncontrado, nombresArchivos, datosParaPdf);
                 }
                 else
                 {
-                    // Es una constancia de la UIF
                     bool esAprobatoria = !historyItem.ResultadoEncontrado;
                     _pdfService.GenerarConstancia(tempPath, historyItem.TerminoBuscado, esAprobatoria, nombresArchivos, datosParaPdf);
                 }

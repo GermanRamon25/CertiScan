@@ -17,7 +17,6 @@ namespace CertiScan.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private readonly PdfService _pdfService;
-        // --- NUEVO SERVICIO ---
         private readonly PdfSatService _pdfSatService;
 
         private string _fuenteHallazgoUif = string.Empty;
@@ -25,7 +24,6 @@ namespace CertiScan.ViewModels
         public string NombreUsuarioLogueado { get; }
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
         public ObservableCollection<DocumentoViewModel> DocumentosSatMostrados { get; set; }
-
         public ObservableCollection<BusquedaHistorial> HistorialBusquedas { get; set; }
 
         // --- MÓDULO UIF ---
@@ -85,14 +83,12 @@ namespace CertiScan.ViewModels
         public IRelayCommand RefreshCommand { get; }
         public IRelayCommand RefreshSatCommand { get; }
         public IRelayCommand<bool> GenerarConstanciaCommand { get; }
-        // --- NUEVO COMANDO SAT ---
         public IRelayCommand<bool> GenerarReporteSatCommand { get; }
 
         public MainViewModel()
         {
             _databaseService = new DatabaseService();
             _pdfService = new PdfService();
-            // INICIALIZACIÓN
             _pdfSatService = new PdfSatService();
 
             DocumentosMostrados = new ObservableCollection<DocumentoViewModel>();
@@ -108,18 +104,19 @@ namespace CertiScan.ViewModels
             RefreshCommand = new RelayCommand(RefreshView);
             RefreshSatCommand = new RelayCommand(RefreshViewSat);
             GenerarConstanciaCommand = new RelayCommand<bool>(GenerarConstancia);
-            // VINCULAR COMANDO
             GenerarReporteSatCommand = new RelayCommand<bool>(GenerarReporteSat);
 
             NombreUsuarioLogueado = SessionService.CurrentUserName;
 
             LoadAllDocuments();
-            LoadHistorial();
+            // CORRECCIÓN: Al cargar el historial inicial, podemos elegir uno por defecto (ej. UIF)
+            LoadHistorial("UIF");
         }
 
-        public void LoadHistorial()
+        // CORRECCIÓN: Ahora el historial requiere saber qué módulo cargar
+        public void LoadHistorial(string tipoModulo)
         {
-            var historial = _databaseService.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+            var historial = _databaseService.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName, tipoModulo);
 
             Application.Current.Dispatcher.Invoke(() => {
                 HistorialBusquedas.Clear();
@@ -143,8 +140,9 @@ namespace CertiScan.ViewModels
 
             UpdateConstanciaButtonStates(true);
 
-            _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId);
-            LoadHistorial();
+            // CORRECCIÓN: Se añade el parámetro "UIF"
+            _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId, "UIF");
+            LoadHistorial("UIF");
 
             MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA!" : "Sin coincidencias.");
         }
@@ -157,8 +155,9 @@ namespace CertiScan.ViewModels
             bool hallazgo = resultados.Count > 0;
             IsReporteSatEnabled = true;
 
-            _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId);
-            LoadHistorial();
+            // CORRECCIÓN: Se añade el parámetro "SAT"
+            _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
+            LoadHistorial("SAT");
 
             MessageBox.Show(hallazgo ? "¡HALLAZGO EN LISTADO 69-B!" : "Sin coincidencias en SAT.");
         }
@@ -190,7 +189,6 @@ namespace CertiScan.ViewModels
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
-        // --- MÉTODO PARA GENERAR REPORTE SAT ---
         private void GenerarReporteSat(bool esLimpio)
         {
             try
@@ -208,10 +206,8 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {info?.Telefono}"
                 };
 
-                // Tomamos archivos específicos del módulo SAT
                 List<string> archivos = DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList();
 
-                // LLAMADA AL NUEVO SERVICIO
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
 
                 var viewer = new PdfViewerWindow(tempPath, TerminoBusquedaSat);
@@ -220,8 +216,8 @@ namespace CertiScan.ViewModels
             catch (Exception ex) { MessageBox.Show("Error SAT: " + ex.Message); }
         }
 
-        private void RefreshView() { LoadAllDocuments(); LoadHistorial(); }
-        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; IsReporteSatEnabled = false; LoadAllDocuments(); LoadHistorial(); }
+        private void RefreshView() { LoadAllDocuments(); LoadHistorial("UIF"); }
+        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; IsReporteSatEnabled = false; LoadAllDocuments(); LoadHistorial("SAT"); }
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
         {

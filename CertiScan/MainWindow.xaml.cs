@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using CertiScan.Services;
 using System;
 using System.Linq;
-using System.Collections.Generic; // Asegúrate de tener esta línea
+using System.Collections.Generic;
 
 namespace CertiScan
 {
@@ -51,7 +51,7 @@ namespace CertiScan
         }
 
         // ============================================================
-        // HISTORIAL MÓDULO UIF (Solo nombres de personas)
+        // HISTORIAL MÓDULO UIF
         // ============================================================
         private void VerHistorial_Click(object sender, RoutedEventArgs e)
         {
@@ -67,16 +67,16 @@ namespace CertiScan
                 }
 
                 var db = new DatabaseService();
-                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+                // CORRECCIÓN: Se agrega el parámetro "UIF"
+                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName, "UIF");
 
                 if (historyVm.HistorialBusquedas != null && datos != null)
                 {
                     historyVm.HistorialBusquedas.Clear();
                     foreach (var item in datos)
                     {
-                        // FILTRO: Si NO parece un RFC (SAT), lo agregamos a UIF
-                        bool esRfc = item.TerminoBuscado.Trim().Length >= 12 && item.TerminoBuscado.Trim().Length <= 13;
-                        if (!esRfc) historyVm.HistorialBusquedas.Add(item);
+                        // Ya no necesitas filtrar manualmente por longitud, la BD ya lo trae separado
+                        historyVm.HistorialBusquedas.Add(item);
                     }
                 }
 
@@ -91,7 +91,7 @@ namespace CertiScan
         }
 
         // ============================================================
-        // HISTORIAL MÓDULO SAT (Solo RFCs/Empresas)
+        // HISTORIAL MÓDULO SAT
         // ============================================================
         private void VerHistorialSat_Click(object sender, RoutedEventArgs e)
         {
@@ -107,16 +107,16 @@ namespace CertiScan
                 }
 
                 var db = new DatabaseService();
-                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName);
+                // CORRECCIÓN: Se agrega el parámetro "SAT"
+                var datos = db.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName, "SAT");
 
                 if (historyVm.HistorialBusquedas != null && datos != null)
                 {
                     historyVm.HistorialBusquedas.Clear();
                     foreach (var item in datos)
                     {
-                        // FILTRO: Si parece un RFC (12-13 caracteres), lo agregamos a SAT
-                        bool esRfc = item.TerminoBuscado.Trim().Length >= 12 && item.TerminoBuscado.Trim().Length <= 13;
-                        if (esRfc) historyVm.HistorialBusquedas.Add(item);
+                        // Ya no necesitas filtrar manualmente por longitud
+                        historyVm.HistorialBusquedas.Add(item);
                     }
                 }
 

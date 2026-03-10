@@ -220,22 +220,16 @@ namespace CertiScan.Services
             }
         }
 
-        // ============================================================
-        // CARGA MASIVA - CORREGIDA: Filtra encabezados informativos del SAT
-        // ============================================================
         public async Task CargaMasivaListadoSatAsync(DataTable dtSat)
         {
             try
             {
-                // CORRECCIÓN: Filtrar el DataTable antes de la carga masiva
-                // El SAT incluye filas con texto legal al inicio. Las eliminamos:
                 for (int i = dtSat.Rows.Count - 1; i >= 0; i--)
                 {
                     DataRow dr = dtSat.Rows[i];
                     string primeraColumna = dr[0].ToString();
                     string segundaColumna = dr[1].ToString();
 
-                    // Si la fila contiene el texto legal o es el encabezado de nombres de columna, se elimina
                     if (primeraColumna.Contains("Información actualizada") ||
                         primeraColumna.Contains("Listado completo") ||
                         primeraColumna.Equals("No") ||
@@ -244,12 +238,11 @@ namespace CertiScan.Services
                         dr.Delete();
                     }
                 }
-                dtSat.AcceptChanges(); // Aplicar los borrados
+                dtSat.AcceptChanges();
 
                 using (var connection = new SqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
-
                     using (var cmd = new SqlCommand("DELETE FROM ListadoSat69B", connection))
                     {
                         await cmd.ExecuteNonQueryAsync();
@@ -260,13 +253,9 @@ namespace CertiScan.Services
                         bulkCopy.DestinationTableName = "ListadoSat69B";
                         bulkCopy.BatchSize = 5000;
                         bulkCopy.ColumnMappings.Clear();
-
-                        // Mapeo por posición basado en el archivo real:
-                        // 1 = RFC, 2 = Nombre, 3 = Situación
                         bulkCopy.ColumnMappings.Add(1, "RFC");
                         bulkCopy.ColumnMappings.Add(2, "NombreContribuyente");
                         bulkCopy.ColumnMappings.Add(3, "Situacion");
-
                         await bulkCopy.WriteToServerAsync(dtSat);
                     }
                 }
@@ -294,22 +283,30 @@ namespace CertiScan.Services
         }
 
         // ==========================================
-        // HISTORIAL Y OTROS
+        // HISTORIAL Y OTROS - CORREGIDO PARA SEPARAR MÓDULOS
         // ==========================================
-        public List<BusquedaHistorial> GetSearchHistory(int usuarioId, string nombreUsuario)
+        public List<BusquedaHistorial> GetSearchHistory(int usuarioId, string nombreUsuario, string tipoModulo)
         {
             var historial = new List<BusquedaHistorial>();
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
                 bool esAdmin = (nombreUsuario.ToLower() == "admin");
-                string query = @"SELECT u.NombreUsuario, b.TerminoBuscado, b.FechaCarga, b.ResultadoEncontrado 
-                                FROM Busquedas b JOIN Usuarios u ON b.UsuarioId = u.Id";
-                if (!esAdmin) query += " WHERE b.UsuarioId = @UsuarioId";
+
+                // Filtramos obligatoriamente por el módulo (UIF o SAT)
+                string query = @"SELECT u.NombreUsuario, b.TerminoBuscado, b.FechaCarga, b.ResultadoEncontrado, b.Modulo 
+                                FROM Busquedas b JOIN Usuarios u ON b.UsuarioId = u.Id 
+                                WHERE b.Modulo = @Modulo";
+
+                if (!esAdmin) query += " AND b.UsuarioId = @UsuarioId";
+
                 query += " ORDER BY b.FechaCarga DESC";
+
                 using (var command = new SqlCommand(query, connection))
                 {
+                    command.Parameters.AddWithValue("@Modulo", tipoModulo);
                     if (!esAdmin) command.Parameters.AddWithValue("@UsuarioId", usuarioId);
+
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -319,7 +316,8 @@ namespace CertiScan.Services
                                 NombreUsuario = reader.GetString(0),
                                 TerminoBuscado = reader.GetString(1),
                                 FechaCarga = reader.GetDateTime(2),
-                                ResultadoEncontrado = reader.GetBoolean(3)
+                                ResultadoEncontrado = reader.GetBoolean(3),
+                                Modulo = reader.GetString(4)
                             });
                         }
                     }
@@ -328,24 +326,26 @@ namespace CertiScan.Services
             return historial;
         }
 
-        public void RegistrarBusqueda(string t, bool re, int uid)
+        public void RegistrarBusqueda(string t, bool re, int uid, string tipoModulo)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId) VALUES (@T, @RE, @UID)";
+                // Ahora insertamos también el nombre del módulo
+                var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId, Modulo) VALUES (@T, @RE, @UID, @MOD)";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@T", t);
                     command.Parameters.AddWithValue("@RE", re);
                     command.Parameters.AddWithValue("@UID", uid);
+                    command.Parameters.AddWithValue("@MOD", tipoModulo);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
         // ============================================================
-        // MÉTODO DE BÚSQUEDA INTELIGENTE (Ignora espacios extra)
+        // MÉTODO DE BÚSQUEDA INTELIGENTE SAT
         // ============================================================
         public DataTable BuscarEnListadoSat(string termino)
         {
@@ -355,35 +355,24 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-
-                // 1. Limpiamos espacios accidentales al inicio y al final
                 termino = termino.Trim();
-
-                // 2. Dividimos el texto en palabras individuales
-                // Esto ignora los dobles o triples espacios que el SAT suele poner por error
                 string[] palabras = termino.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                // 3. Construimos una consulta SQL dinámica
                 string query = @"SELECT TOP 100 RFC, NombreContribuyente, Situacion 
                                  FROM ListadoSat69B 
                                  WHERE LTRIM(RTRIM(RFC)) LIKE @TerminoExacto 
                                  OR (";
 
-                // Exigimos que el nombre contenga TODAS las palabras que el usuario escribió, sin importar los espacios entre ellas
                 for (int i = 0; i < palabras.Length; i++)
                 {
                     if (i > 0) query += " AND ";
                     query += $"LTRIM(RTRIM(NombreContribuyente)) LIKE @P{i}";
                 }
-
-                query += ")"; // Cerramos la condición OR
+                query += ")";
 
                 using (var command = new SqlCommand(query, connection))
                 {
-                    // Parámetro para buscar el RFC (ya que ese no lleva espacios)
                     command.Parameters.AddWithValue("@TerminoExacto", "%" + termino + "%");
-
-                    // Parámetros para buscar cada parte del nombre
                     for (int i = 0; i < palabras.Length; i++)
                     {
                         command.Parameters.AddWithValue($"@P{i}", "%" + palabras[i] + "%");
