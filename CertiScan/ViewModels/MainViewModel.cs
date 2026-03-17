@@ -152,13 +152,16 @@ namespace CertiScan.ViewModels
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-            var resultados = _databaseService.BuscarTermino(TerminoBusqueda, SessionService.CurrentUserId, "UIF");
+
+            // --- CAMBIO AQUÍ: Limpiamos el término de acentos ---
+            string terminoLimpio = NormalizarTexto(TerminoBusqueda);
+
+            var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "UIF");
             ResultadoEncontrado = resultados.Count > 0;
 
             _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", resultados.Select(d => d.NombreArchivo)) : string.Empty;
 
             UpdateConstanciaButtonStates(true);
-
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId, "UIF");
             LoadHistorial("UIF");
 
@@ -169,13 +172,15 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
 
-            var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
+            // --- CAMBIO AQUÍ: Limpiamos el término de acentos ---
+            string terminoLimpio = NormalizarTexto(TerminoBusquedaSat);
+
+            var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "SAT");
             bool hallazgo = resultados.Count > 0;
 
             _fuenteHallazgoSat = hallazgo ? resultados.First().NombreArchivo : string.Empty;
 
             UpdateSatButtonStates(true, hallazgo);
-
             _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
             LoadHistorial("SAT");
 
@@ -295,5 +300,30 @@ namespace CertiScan.ViewModels
 
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
         private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
+
+        private string NormalizarTexto(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
+
+            // 1. Convertir a Mayúsculas
+            string temp = texto.ToUpper().Trim();
+
+            // 2. Separar caracteres de sus acentos
+            var normalizedString = temp.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder();
+
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+                // 3. Solo conservar los caracteres, descartando las tildes/acentos
+                if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            // 4. Retornar el texto "limpio" (Ej: ARAGÓN -> ARAGON)
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+        }
     }
 }
