@@ -143,18 +143,19 @@ namespace CertiScan.Services
                                 }
                             });
 
-                            // --- ARCHIVOS ANALIZADOS ---
-                            if (archivosAnalizados != null && archivosAnalizados.Any())
+                            // --- UBICACIÓN DEL HALLAZGO (Modificado para mostrar únicamente el archivo encontrado) ---
+                            if (!esLimpio && archivosAnalizados != null && archivosAnalizados.Any())
                             {
-                                col.Item().PaddingTop(20).Column(fileCol =>
+                                col.Item().PaddingTop(20).Text(text =>
                                 {
-                                    fileCol.Item().Text("Listados Analizados:").Bold().FontSize(10);
-                                    foreach (var file in archivosAnalizados)
-                                    {
-                                        fileCol.Item().Text($"- {file}").FontSize(9).FontColor(Colors.Grey.Darken2);
-                                    }
+                                    // Se extrae únicamente el primer archivo de la lista de hallazgos
+                                    string archivoEspecifico = archivosAnalizados.First();
+
+                                    text.Span("La coincidencia fue localizada específicamente en el archivo oficial: ").Bold().FontSize(10);
+                                    text.Span(archivoEspecifico).FontSize(10).Underline();
                                 });
                             }
+
 
                             // --- FIRMA ---
                             col.Item().PaddingTop(60).AlignCenter().Column(signatureCol =>

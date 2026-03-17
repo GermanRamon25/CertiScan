@@ -20,6 +20,7 @@ namespace CertiScan.ViewModels
         private readonly PdfSatService _pdfSatService;
 
         private string _fuenteHallazgoUif = string.Empty;
+        private string _fuenteHallazgoSat = string.Empty;
 
         public string NombreUsuarioLogueado { get; }
         public ObservableCollection<DocumentoViewModel> DocumentosMostrados { get; set; }
@@ -31,7 +32,14 @@ namespace CertiScan.ViewModels
         public string TerminoBusqueda
         {
             get => _terminoBusqueda;
-            set { if (SetProperty(ref _terminoBusqueda, value)) { UpdateConstanciaButtonStates(false); } }
+            set
+            {
+                if (SetProperty(ref _terminoBusqueda, value))
+                {
+                    // Al cambiar el texto o limpiarlo, deshabilitamos botones
+                    UpdateConstanciaButtonStates(false);
+                }
+            }
         }
 
         private bool _resultadoEncontrado = false;
@@ -58,8 +66,14 @@ namespace CertiScan.ViewModels
         public string TerminoBusquedaSat
         {
             get => _terminoBusquedaSat;
-            set { if (SetProperty(ref _terminoBusquedaSat, value)) { IsReporteSatEnabled = false; } }
+            set { if (SetProperty(ref _terminoBusquedaSat, value)) { UpdateSatButtonStates(false, false); } }
         }
+
+        private bool _isSatLimpioButtonEnabled;
+        public bool IsSatLimpioButtonEnabled { get => _isSatLimpioButtonEnabled; set => SetProperty(ref _isSatLimpioButtonEnabled, value); }
+
+        private bool _isSatHallazgoButtonEnabled;
+        public bool IsSatHallazgoButtonEnabled { get => _isSatHallazgoButtonEnabled; set => SetProperty(ref _isSatHallazgoButtonEnabled, value); }
 
         private bool _isReporteSatEnabled;
         public bool IsReporteSatEnabled { get => _isReporteSatEnabled; set => SetProperty(ref _isReporteSatEnabled, value); }
@@ -109,11 +123,9 @@ namespace CertiScan.ViewModels
             NombreUsuarioLogueado = SessionService.CurrentUserName;
 
             LoadAllDocuments();
-            // CORRECCIÓN: Al cargar el historial inicial, podemos elegir uno por defecto (ej. UIF)
             LoadHistorial("UIF");
         }
 
-        // CORRECCIÓN: Ahora el historial requiere saber qué módulo cargar
         public void LoadHistorial(string tipoModulo)
         {
             var historial = _databaseService.GetSearchHistory(SessionService.CurrentUserId, SessionService.CurrentUserName, tipoModulo);
@@ -130,6 +142,13 @@ namespace CertiScan.ViewModels
             IsDenegadaButtonEnabled = realizada && ResultadoEncontrado;
         }
 
+        private void UpdateSatButtonStates(bool realizada, bool huboHallazgo)
+        {
+            IsSatLimpioButtonEnabled = realizada && !huboHallazgo;
+            IsSatHallazgoButtonEnabled = realizada && huboHallazgo;
+            IsReporteSatEnabled = realizada;
+        }
+
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
@@ -140,7 +159,6 @@ namespace CertiScan.ViewModels
 
             UpdateConstanciaButtonStates(true);
 
-            // CORRECCIÓN: Se añade el parámetro "UIF"
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId, "UIF");
             LoadHistorial("UIF");
 
@@ -153,9 +171,11 @@ namespace CertiScan.ViewModels
 
             var resultados = _databaseService.BuscarTermino(TerminoBusquedaSat, SessionService.CurrentUserId, "SAT");
             bool hallazgo = resultados.Count > 0;
-            IsReporteSatEnabled = true;
 
-            // CORRECCIÓN: Se añade el parámetro "SAT"
+            _fuenteHallazgoSat = hallazgo ? resultados.First().NombreArchivo : string.Empty;
+
+            UpdateSatButtonStates(true, hallazgo);
+
             _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
             LoadHistorial("SAT");
 
@@ -179,7 +199,9 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {info?.Telefono}"
                 };
 
-                List<string> listaArchivos = DocumentosMostrados.Select(d => d.NombreArchivo).ToList();
+                List<string> listaArchivos = esAprobatoria
+                    ? DocumentosMostrados.Select(d => d.NombreArchivo).ToList()
+                    : new List<string> { _fuenteHallazgoUif };
 
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
 
@@ -206,7 +228,9 @@ namespace CertiScan.ViewModels
                     DatosContacto = $"Tel: {info?.Telefono}"
                 };
 
-                List<string> archivos = DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList();
+                List<string> archivos = esLimpio
+                    ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList()
+                    : new List<string> { _fuenteHallazgoSat };
 
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
 
@@ -216,8 +240,22 @@ namespace CertiScan.ViewModels
             catch (Exception ex) { MessageBox.Show("Error SAT: " + ex.Message); }
         }
 
-        private void RefreshView() { LoadAllDocuments(); LoadHistorial("UIF"); }
-        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; IsReporteSatEnabled = false; LoadAllDocuments(); LoadHistorial("SAT"); }
+        // --- CORRECCIÓN APLICADA: Limpia el nombre y bloquea botones en UIF ---
+        private void RefreshView()
+        {
+            TerminoBusqueda = string.Empty; // Limpia el TextBox
+            UpdateConstanciaButtonStates(false); // Bloquea los botones de reporte
+            LoadAllDocuments();
+            LoadHistorial("UIF");
+        }
+
+        private void RefreshViewSat()
+        {
+            TerminoBusquedaSat = string.Empty;
+            UpdateSatButtonStates(false, false);
+            LoadAllDocuments();
+            LoadHistorial("SAT");
+        }
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
         {
