@@ -119,7 +119,6 @@ namespace CertiScan.ViewModels
             LoadHistorial("UIF");
         }
 
-        // --- NORMALIZACIÓN PARA BÚSQUEDA ---
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
@@ -135,18 +134,18 @@ namespace CertiScan.ViewModels
             return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
         }
 
-        // --- LIMPIEZA EXTREMA PARA NOMBRES DE ARCHIVO ---
+        // --- SOLUCIÓN AL ERROR DE RUTA: Limpia puntos, dos puntos y símbolos ---
         private string LimpiarNombreParaRuta(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre)) return "Reporte";
-            // Quitamos acentos primero
-            string textoSinAcentos = NormalizarTexto(nombre);
-            // Quitamos cualquier caracter que no sea letra o número
+            string seguro = NormalizarTexto(nombre);
+
+            // Reemplazamos cualquier carácter no alfanumérico por un guion bajo
             var sb = new StringBuilder();
-            foreach (char c in textoSinAcentos)
+            foreach (char c in seguro)
             {
                 if (char.IsLetterOrDigit(c)) sb.Append(c);
-                else if (char.IsWhiteSpace(c)) sb.Append("_");
+                else sb.Append("_");
             }
             return sb.ToString();
         }
@@ -189,9 +188,14 @@ namespace CertiScan.ViewModels
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
+
+            // 1. Normalizamos para la búsqueda interna
             string terminoLimpio = NormalizarTexto(TerminoBusquedaSat);
+
+            // 2. Realizamos la búsqueda en la base de datos
             var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "SAT");
 
+            // Lógica de proximidad por si el nombre está cortado en el PDF
             if (resultados.Count == 0 && terminoLimpio.Contains(" "))
             {
                 string primerApellido = terminoLimpio.Split(' ')[0];
@@ -201,39 +205,44 @@ namespace CertiScan.ViewModels
 
             bool hallazgo = resultados.Count > 0;
             _fuenteHallazgoSat = hallazgo ? resultados.First().NombreArchivo : string.Empty;
+
+            // 3. Actualizamos estados de botones
             UpdateSatButtonStates(true, hallazgo);
-            _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
+
+            // --- AQUÍ ESTÁ EL CAMBIO SOLICITADO ---
+            // QUITAMOS EL PREFIJO "SAT: " PARA QUE LA BASE DE DATOS QUEDE LIMPIA
+            // Antes tenías: _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, ...);
+            _databaseService.RegistrarBusqueda(TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
+
+            // 4. Recargamos el historial y mostramos aviso
             LoadHistorial("SAT");
             MessageBox.Show(hallazgo ? "¡HALLAZGO EN LISTADO 69-B!" : "Sin coincidencias en SAT.");
         }
-
-        // --- GENERACIÓN DE PDF CON RUTA ÚNICA PARA EVITAR BLOQUEOS ---
         private void GenerarConstancia(bool esAprobatoria)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
 
+                // --- SOLUCIÓN: Limpiamos el nombre quitando ":" y símbolos de la base de datos ---
                 string nombreSeguro = LimpiarNombreParaRuta(TerminoBusqueda);
-                // Usamos ticks de tiempo para que el nombre NUNCA se repita y no choque con archivos abiertos
-                string fileName = $"UIF_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
-                string tempPath = Path.Combine(Path.GetTempPath(), fileName);
+
+                // Creamos un nombre de archivo limpio, usando solo guiones bajos
+                string nombreFinal = $"Constancia_UIF_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
+                string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "DATO NO CONFIGURADO", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "CONFIGURAR DIRECCIÓN", DatosContacto = info?.Telefono };
+                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
 
                 List<string> listaArchivos = esAprobatoria ? DocumentosMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoUif };
 
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
-
-                var viewer = new PdfViewerWindow(tempPath, TerminoBusqueda);
-                viewer.ShowDialog();
+                new PdfViewerWindow(tempPath, TerminoBusqueda).ShowDialog();
             }
-            catch (IOException)
+            catch (Exception ex)
             {
-                MessageBox.Show("El archivo está siendo usado por otra ventana. Ciérrela y vuelva a intentar.", "Error de Acceso", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                MessageBox.Show("Error al crear el archivo. Asegúrese de no usar caracteres prohibidos: " + ex.Message);
             }
-            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
         private void GenerarReporteSat(bool esLimpio)
@@ -242,25 +251,25 @@ namespace CertiScan.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
 
+                // --- SOLUCIÓN: Limpiamos el nombre quitando ":" y símbolos del historial ---
                 string nombreSeguro = LimpiarNombreParaRuta(TerminoBusquedaSat);
-                string fileName = $"SAT_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
-                string tempPath = Path.Combine(Path.GetTempPath(), fileName);
+
+                // Reemplazamos cualquier ":" que venga de la BD por un guion bajo "_"
+                string nombreFinal = $"Constancia_SAT_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
+                string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "DATO NO CONFIGURADO", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "CONFIGURAR DIRECCIÓN", DatosContacto = info?.Telefono };
+                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
 
                 List<string> archivos = esLimpio ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoSat };
 
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
-
-                var viewer = new PdfViewerWindow(tempPath, TerminoBusquedaSat);
-                viewer.ShowDialog();
+                new PdfViewerWindow(tempPath, TerminoBusquedaSat).ShowDialog();
             }
-            catch (IOException)
+            catch (Exception ex)
             {
-                MessageBox.Show("El archivo está siendo usado por otra ventana. Ciérrela y vuelva a intentar.", "Error de Acceso", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                MessageBox.Show("Error al crear el archivo SAT: " + ex.Message);
             }
-            catch (Exception ex) { MessageBox.Show("Error SAT: " + ex.Message); }
         }
 
         private void RefreshView() { TerminoBusqueda = string.Empty; UpdateConstanciaButtonStates(false); LoadAllDocuments(); LoadHistorial("UIF"); }
@@ -282,8 +291,8 @@ namespace CertiScan.ViewModels
             {
                 string ext = Path.GetExtension(r).ToLower();
                 string c = ext == ".pdf" ? _pdfService.ExtraerTextoDePdf(r) : File.ReadAllText(r, Encoding.UTF8);
-                string contenidoNormalizado = NormalizarTexto(c);
-                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(r), r, contenidoNormalizado, SessionService.CurrentUserId, m);
+                string contenidoLimpio = NormalizarTexto(c);
+                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(r), r, contenidoLimpio, SessionService.CurrentUserId, m);
             }
             catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); }
         }
