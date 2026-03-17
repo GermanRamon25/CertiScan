@@ -23,25 +23,49 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="RegenerateButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="#34495E"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+        <Style x:Key="RegenerateButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#F8F9FA"/>
+            <Setter Property="Height" Value="32"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="20">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Text="📄" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <ContentPresenter VerticalAlignment="Center"/>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="16" 
+                                BorderBrush="#DCDFE3" 
+                                BorderThickness="1.2">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.1" Color="Black"/>
+                            </Border.Effect>
+                            <StackPanel Orientation="Horizontal" Margin="10,0">
+                                <Border Background="#FEEBEE" CornerRadius="4" Padding="4,2" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <StackPanel>
+                                        <TextBlock Text="PDF" Foreground="#C62828" FontWeight="Black" FontSize="8" HorizontalAlignment="Center"/>
+                                        <Rectangle Fill="#C62828" Height="1" Width="10"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Regenerar" 
+                                           Foreground="#2C3E50" 
+                                           VerticalAlignment="Center" 
+                                           FontSize="11" 
+                                           FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#2C3E50"/>
+                                <Setter TargetName="border" Property="Background" Value="#E9ECEF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#DEE2E6"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -63,7 +87,7 @@
             <Border Grid.Row="0" Background="{StaticResource PrimaryBlack}" CornerRadius="15,15,0,0" Padding="20">
                 <Grid>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="📜" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
                         <TextBlock Text="HISTORIAL DE BÚSQUEDAS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Button Content="✕" HorizontalAlignment="Right" Foreground="White" Background="Transparent" 
@@ -77,7 +101,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="White" CornerRadius="8" Margin="0,0,0,15" Padding="10,5">
+                <Border Grid.Row="0" Background="White" CornerRadius="20" Margin="0,0,0,15" Padding="15,5" BorderBrush="#DDD" BorderThickness="1">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -88,7 +112,8 @@
                                  Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                                  BorderThickness="0" 
                                  VerticalAlignment="Center"
-                                 FontSize="14"/>
+                                 FontSize="14"
+                                 Background="Transparent"/>
                     </Grid>
                 </Border>
 
@@ -101,8 +126,8 @@
                           CanUserAddRows="False"
                           Background="White"
                           GridLinesVisibility="None"
-                          HeadersVisibility="Column">
-
+                          HeadersVisibility="Column"
+                          RowHeight="42">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaCarga, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
                         <DataGridTextColumn Header="Usuario" Binding="{Binding NombreUsuario}" Width="120"/>
@@ -111,8 +136,8 @@
                         <DataGridTemplateColumn Header="Resultado" Width="115">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border x:Name="ResultBorder" CornerRadius="4" Margin="5" Padding="5,2" HorizontalAlignment="Left">
-                                        <TextBlock x:Name="ResultText" Text="{Binding ResultadoTexto}" FontWeight="Bold" FontSize="10"/>
+                                    <Border x:Name="ResultBorder" CornerRadius="10" Margin="3" Padding="6,2" HorizontalAlignment="Left">
+                                        <TextBlock x:Name="ResultText" Text="{Binding ResultadoTexto}" FontWeight="Bold" FontSize="9"/>
                                     </Border>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding ResultadoEncontrado}" Value="True">
@@ -128,15 +153,18 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="Acción" Width="140">
+                        <DataGridTemplateColumn Header="Acción" Width="145">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="Regenerar PDF" Style="{StaticResource RegenerateButtonStyle}"
+                                    <Button Style="{StaticResource RegenerateButtonStyle}"
                                             Command="{Binding DataContext.RegenerateCertificateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}"/>
+                                            CommandParameter="{Binding}"
+                                            HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

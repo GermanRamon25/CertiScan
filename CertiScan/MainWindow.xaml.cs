@@ -50,9 +50,9 @@ namespace CertiScan
             }
         }
 
-        // ============================================================
+        // =======================
         // HISTORIAL MÓDULO UIF
-        // ============================================================
+        // =======================
         private void VerHistorial_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -77,9 +77,9 @@ namespace CertiScan
             }
         }
 
-        // ============================================================
+        // ========================
         // HISTORIAL MÓDULO SAT
-        // ============================================================
+        // ========================
         private void VerHistorialSat_Click(object sender, RoutedEventArgs e)
         {
             try

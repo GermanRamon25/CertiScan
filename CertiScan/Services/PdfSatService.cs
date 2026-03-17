@@ -102,20 +102,19 @@ namespace CertiScan.Services
                         // --- CONTENIDO ---
                         page.Content().PaddingVertical(20).Column(col =>
                         {
-                            col.Item().Text("CONSTANCIA DE VERIFICACIÓN - ARTÍCULO 69-B CFF").Bold().FontSize(13).FontColor("#691C32");
+                            col.Item().Text("CONSTANCIA DE VERIFICACIÓN - ARTÍCULO 69, 69-B y 69-B Bis  ").Bold().FontSize(13).FontColor("#691C32");
 
                             col.Item().PaddingTop(20).Text(text =>
                             {
                                 text.Justify();
-                                text.Span("El suscrito Notario Público, hace constar que en cumplimiento a las disposiciones fiscales vigentes y para efectos de lo previsto en el ");
-                                text.Span("Artículo 69-B del Código Fiscal de la Federación").Bold();
-                                text.Span(", se procedió a realizar la búsqueda y compulsa del contribuyente en los listados oficiales de la autoridad fiscal (SAT) relativos a presuntos o definitivos con operaciones inexistentes.");
+                                text.Span("El suscrito Notario Público, hace constar que realizó la busqueda del compareciente en el listado de contribuyentes incumplidos por motivo de publicación a que se refieren los Artículos 69, 69-B y 69-B Bis del Código Fiscal de la Federación");
+                                text.Span(", y que se encuentran contenidos en el portal del Servicio de Administración Tributaria SAT. Contribuyentes publicados y acciones contra la delincuencia que dicha busqueda arrojo los siguientes resultados.");
                             });
 
                             col.Item().PaddingTop(20).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(innerCol =>
                             {
                                 innerCol.Item().Text(text => {
-                                    text.Span("RFC / RAZÓN SOCIAL: ").Bold();
+                                    text.Span("NOMBRE O DENOMINACIÓN: ").Bold();
                                     text.Span(rfcBuscado.ToUpper());
                                 });
 
@@ -133,14 +132,14 @@ namespace CertiScan.Services
                                     text.Span("RESULTADO: SIN COINCIDENCIAS (LIMPIO)").Bold().FontColor(Colors.Green.Medium);
                                     text.Span("\n\nSe informa que después de cotejar la base de datos de los listados publicados por el Servicio de Administración Tributaria (SAT), ");
                                     text.Span("NO").Bold();
-                                    text.Span(" se localizó registro alguno que vincule al contribuyente antes mencionado con las situaciones jurídicas previstas en el numeral 69-B del Código Fiscal de la Federación.");
+                                    text.Span(" se localizó registro alguno que vincule al contribuyente antes mencionado con las situaciones jurídicas previstas en el numeral 69, 69-B Y 69 B Bis del Código Fiscal de la Federación.");
                                 }
                                 else
                                 {
                                     text.Span("RESULTADO: CON COINCIDENCIAS (HALLAZGO)").Bold().FontColor(Colors.Red.Medium);
-                                    text.Span("\n\nATENCIÓN: Se ha localizado un registro que ");
-                                    text.Span("COINCIDE").Bold();
-                                    text.Span(" con el contribuyente buscado en los listados del SAT. Se recomienda verificar la situación específica (Presunto, Definitivo o Sentencia Favorable) antes de cualquier acto jurídico.");
+                                    text.Span("\n\nSe informa que después de cotejar la base de datos de los listados publicados por el Servicio de Administración Tributaria (SAT),");
+                                    text.Span("SI").Bold();
+                                    text.Span("se localizó registro alguno que vincule al contribuyente antes mencionado con las situaciones jurídicas previstas en el numeral 69, 69-B Y 69 B Bis del Código Fiscal de la Federación.");
                                 }
                             });
 
@@ -167,10 +166,10 @@ namespace CertiScan.Services
                             });
                         });
 
-                        page.Footer().AlignCenter().Text(text =>
+                        page.Footer().AlignLeft().Text(text =>
                         {
                             text.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Medium));
-                            text.Span("Este reporte fue generado automáticamente por CertiScan con base en archivos de listados públicos oficiales.");
+                            text.Span($"© {DateTime.Now.Year} CertiScan | Sistema de Verificación Profesional");
                         });
                     });
                 })
