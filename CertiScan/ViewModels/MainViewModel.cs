@@ -11,6 +11,7 @@ using CertiScan.Models;
 using System.Text;
 using System.Threading.Tasks;
 using System.Globalization;
+using System.Text.RegularExpressions; // Necesario para limpiar espacios
 
 namespace CertiScan.ViewModels
 {
@@ -123,11 +124,13 @@ namespace CertiScan.ViewModels
             LoadHistorial("UIF");
         }
 
-        // MÉTODO UNIFICADO: Normaliza quitando acentos y estandarizando a mayúsculas para la BD
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
-            string temp = texto.ToUpper().Trim();
+
+            // Limpieza de espacios múltiples (Soluciona lo de la imagen)
+            string temp = Regex.Replace(texto.Trim(), @"\s+", " ").ToUpper();
+
             var normalizedString = temp.Normalize(NormalizationForm.FormD);
             var stringBuilder = new StringBuilder();
             foreach (var c in normalizedString)
@@ -169,7 +172,7 @@ namespace CertiScan.ViewModels
 
         private void UpdateSatButtonStates(bool realizada, bool huboHallazgo)
         {
-            ResultadoEncontradoSat = huboHallazgo; // Sincroniza la propiedad de resultado
+            ResultadoEncontradoSat = huboHallazgo;
             IsSatLimpioButtonEnabled = realizada && !huboHallazgo;
             IsSatHallazgoButtonEnabled = realizada && huboHallazgo;
             IsReporteSatEnabled = realizada;
@@ -197,7 +200,6 @@ namespace CertiScan.ViewModels
             string terminoLimpio = NormalizarTexto(TerminoBusquedaSat);
             var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "SAT");
 
-            // Lógica de respaldo por si el nombre está cortado
             if (resultados.Count == 0 && terminoLimpio.Contains(" "))
             {
                 string primerApellido = terminoLimpio.Split(' ')[0];
@@ -228,17 +230,9 @@ namespace CertiScan.ViewModels
                 string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria
-                {
-                    NombreNotario = info?.NombreNotario ?? "No Configurado",
-                    NumeroNotaria = info?.NumeroNotaria ?? "0",
-                    DireccionCompleta = info?.Direccion ?? "No Configurada",
-                    DatosContacto = $"Tel: {info?.Telefono}"
-                };
+                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
 
-                List<string> listaArchivos = esAprobatoria
-                    ? DocumentosMostrados.Select(d => d.NombreArchivo).ToList()
-                    : new List<string> { _fuenteHallazgoUif };
+                List<string> listaArchivos = esAprobatoria ? DocumentosMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoUif };
 
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
                 new PdfViewerWindow(tempPath, TerminoBusqueda).ShowDialog();
@@ -256,17 +250,9 @@ namespace CertiScan.ViewModels
                 string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria
-                {
-                    NombreNotario = info?.NombreNotario ?? "No Configurado",
-                    NumeroNotaria = info?.NumeroNotaria ?? "0",
-                    DireccionCompleta = info?.Direccion ?? "No Configurada",
-                    DatosContacto = $"Tel: {info?.Telefono}"
-                };
+                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
 
-                List<string> archivos = esLimpio
-                    ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList()
-                    : new List<string> { _fuenteHallazgoSat };
+                List<string> archivos = esLimpio ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoSat };
 
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
                 new PdfViewerWindow(tempPath, TerminoBusquedaSat).ShowDialog();
@@ -276,7 +262,7 @@ namespace CertiScan.ViewModels
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
         {
-            var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "PDF|*.pdf|TXT|*.txt" };
+            var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "Archivos Compatibles|*.csv;*.pdf;*.txt" };
             if (ofd.ShowDialog() == true)
             {
                 await Task.Run(() => ProcesarDocumentoIndividualAsync(ofd.FileName, esParaSat ? "SAT" : "UIF"));
@@ -289,14 +275,37 @@ namespace CertiScan.ViewModels
             try
             {
                 string ext = Path.GetExtension(ruta).ToLower();
-                // Usamos el servicio correspondiente segun el modulo
-                string contenido = ext == ".pdf"
-                    ? (modulo == "SAT" ? _pdfSatService.ExtraerTextoDePdf(ruta) : _pdfService.ExtraerTextoDePdf(ruta))
-                    : File.ReadAllText(ruta, Encoding.UTF8);
+                string contenidoFinal = string.Empty;
 
-                // Normalizamos el contenido antes de guardarlo para que la búsqueda sea efectiva
-                string contenidoLimpio = NormalizarTexto(contenido);
-                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenidoLimpio, SessionService.CurrentUserId, modulo);
+                if (ext == ".csv")
+                {
+                    var nombresLimpios = new StringBuilder();
+                    // Usamos Windows-1252 para leer correctamente acentos y Ñ del CSV
+                    var lineas = File.ReadAllLines(ruta, Encoding.GetEncoding("Windows-1252"));
+
+                    foreach (var linea in lineas.Skip(3)) // Saltar encabezados SAT
+                    {
+                        var campos = linea.Split(',');
+                        if (campos.Length > 2)
+                        {
+                            // Columna 2 es el Nombre del Contribuyente
+                            string nombreRaw = campos[2].Replace("\"", "");
+                            nombresLimpios.AppendLine(NormalizarTexto(nombreRaw));
+                        }
+                    }
+                    contenidoFinal = nombresLimpios.ToString();
+                }
+                else if (ext == ".pdf")
+                {
+                    contenidoFinal = modulo == "SAT" ? _pdfSatService.ExtraerTextoDePdf(ruta) : _pdfService.ExtraerTextoDePdf(ruta);
+                    contenidoFinal = NormalizarTexto(contenidoFinal);
+                }
+                else
+                {
+                    contenidoFinal = NormalizarTexto(File.ReadAllText(ruta, Encoding.UTF8));
+                }
+
+                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenidoFinal, SessionService.CurrentUserId, modulo);
             }
             catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); }
         }

@@ -113,7 +113,7 @@ namespace CertiScan.Services
                             {
                                 text.Justify();
                                 text.Span("El suscrito Notario Público, hace constar que realizó la busqueda del compareciente en el listado de contribuyentes incumplidos por motivo de publicación a que se refieren los Artículos 69, 69-B y 69-B Bis del Código Fiscal de la Federación");
-                                text.Span(", y que se encuentran contenidos en el portal del Servicio de Administración Tributaria SAT. Contribuyentes publicados y acciones contra la delincuencia que dicha busqueda arrojo los siguientes resultados.");
+                                text.Span(", y que se encuentran contenidos en el portal del Servicio de Administración Tributaria (SAT), Contribuyentes publicados y acciones contra la delincuencia que dicha busqueda arrojo los siguientes resultados.");
                             });
 
                             col.Item().PaddingTop(20).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(innerCol =>
@@ -144,7 +144,7 @@ namespace CertiScan.Services
                                     text.Span("RESULTADO: CON COINCIDENCIAS (HALLAZGO)").Bold().FontColor(Colors.Red.Medium);
                                     text.Span("\n\nSe informa que después de cotejar la base de datos de los listados publicados por el Servicio de Administración Tributaria (SAT),");
                                     text.Span("SI").Bold();
-                                    text.Span("se localizó registro alguno que vincule al contribuyente antes mencionado con las situaciones jurídicas previstas en el numeral 69, 69-B Y 69 B Bis del Código Fiscal de la Federación.");
+                                    text.Span(" se localizó registro alguno que vincule al contribuyente antes mencionado con las situaciones jurídicas previstas en el numeral 69, 69-B Y 69 B Bis del Código Fiscal de la Federación.");
                                 }
                             });
 
