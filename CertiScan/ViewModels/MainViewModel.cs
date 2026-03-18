@@ -197,27 +197,43 @@ namespace CertiScan.ViewModels
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-            string terminoLimpio = NormalizarTexto(TerminoBusquedaSat);
-            var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "SAT");
 
-            if (resultados.Count == 0 && terminoLimpio.Contains(" "))
-            {
-                string primerApellido = terminoLimpio.Split(' ')[0];
-                if (primerApellido.Length > 3)
-                    resultados = _databaseService.BuscarTermino(primerApellido, SessionService.CurrentUserId, "SAT");
-            }
+            // 1. Limpiamos y normalizamos igual que como se guardó el CSV
+            string busquedaLimpia = Regex.Replace(TerminoBusquedaSat.Trim(), @"\s+", " ");
+            string terminoParaBD = NormalizarTexto(busquedaLimpia);
+
+            // 2. Buscamos en la base de datos
+            var resultados = _databaseService.BuscarTermino(terminoParaBD, SessionService.CurrentUserId, "SAT");
 
             bool hallazgo = resultados.Count > 0;
-            _fuenteHallazgoSat = hallazgo ? resultados.First().NombreArchivo : string.Empty;
+
+            if (hallazgo)
+            {
+                // CORRECCIÓN: Buscamos si entre los resultados está el CSV para darle prioridad
+                var resultadoCsv = resultados.FirstOrDefault(d => d.NombreArchivo.ToLower().EndsWith(".csv"));
+
+                if (resultadoCsv != null)
+                {
+                    _fuenteHallazgoSat = resultadoCsv.NombreArchivo;
+                }
+                else
+                {
+                    _fuenteHallazgoSat = resultados.First().NombreArchivo;
+                }
+            }
+            else
+            {
+                _fuenteHallazgoSat = string.Empty;
+            }
 
             UpdateSatButtonStates(true, hallazgo);
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
             LoadHistorial("SAT");
 
             if (hallazgo)
-                MessageBox.Show("🚨 ¡HALLAZGO EN LISTADO 69-B!", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"🚨 ¡HALLAZGO! Encontrado en: {_fuenteHallazgoSat}", "CertiScan");
             else
-                MessageBox.Show("✅ Sin coincidencias en SAT.", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("✅ Sin coincidencias.");
         }
 
         private void GenerarConstancia(bool esAprobatoria)
@@ -245,21 +261,36 @@ namespace CertiScan.ViewModels
             try
             {
                 if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
+
                 string nombreSeguro = LimpiarNombreParaRuta(TerminoBusquedaSat);
-                string nombreFinal = $"Constancia_SAT_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
+                string nombreFinal = $"Reporte_SAT_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
                 string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
+                var datos = new DatosNotaria
+                {
+                    NombreNotario = info?.NombreNotario ?? "No Configurado",
+                    NumeroNotaria = info?.NumeroNotaria ?? "0",
+                    DireccionCompleta = info?.Direccion ?? "No Configurada"
+                };
 
-                List<string> archivos = esLimpio ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoSat };
+                // EXPLICACIÓN: Si hubo hallazgo, el archivo que debe aparecer en el PDF 
+                // es el que guardamos en _fuenteHallazgoSat (que ahora prioriza el CSV).
+                List<string> listaParaPdf;
+                if (esLimpio)
+                {
+                    listaParaPdf = DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList();
+                }
+                else
+                {
+                    listaParaPdf = new List<string> { _fuenteHallazgoSat };
+                }
 
-                _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
+                _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, listaParaPdf, datos);
                 new PdfViewerWindow(tempPath, TerminoBusquedaSat).ShowDialog();
             }
-            catch (Exception ex) { MessageBox.Show("Error al crear reporte SAT: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
-
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
         {
             var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "Archivos Compatibles|*.csv;*.pdf;*.txt" };
