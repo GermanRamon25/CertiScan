@@ -33,7 +33,7 @@ namespace CertiScan.ViewModels
         public string TerminoBusqueda
         {
             get => _terminoBusqueda;
-            set { if (SetProperty(ref _terminoBusqueda, value)) { UpdateConstanciaButtonStates(false); } }
+            set { if (SetProperty(ref _terminoBusqueda, value)) { ResultadoEncontrado = false; UpdateConstanciaButtonStates(false); } }
         }
 
         private bool _resultadoEncontrado = false;
@@ -60,8 +60,11 @@ namespace CertiScan.ViewModels
         public string TerminoBusquedaSat
         {
             get => _terminoBusquedaSat;
-            set { if (SetProperty(ref _terminoBusquedaSat, value)) { UpdateSatButtonStates(false, false); } }
+            set { if (SetProperty(ref _terminoBusquedaSat, value)) { ResultadoEncontradoSat = false; UpdateSatButtonStates(false, false); } }
         }
+
+        private bool _resultadoEncontradoSat = false;
+        public bool ResultadoEncontradoSat { get => _resultadoEncontradoSat; set => SetProperty(ref _resultadoEncontradoSat, value); }
 
         private bool _isSatLimpioButtonEnabled;
         public bool IsSatLimpioButtonEnabled { get => _isSatLimpioButtonEnabled; set => SetProperty(ref _isSatLimpioButtonEnabled, value); }
@@ -82,6 +85,7 @@ namespace CertiScan.ViewModels
         private string _contenidoDocumentoSat;
         public string ContenidoDocumentoSat { get => _contenidoDocumentoSat; set => SetProperty(ref _contenidoDocumentoSat, value); }
 
+        // --- COMANDOS ---
         public IAsyncRelayCommand CargarPdfCommand { get; }
         public IAsyncRelayCommand CargarPdfSatCommand { get; }
         public IRelayCommand BuscarCommand { get; }
@@ -119,6 +123,7 @@ namespace CertiScan.ViewModels
             LoadHistorial("UIF");
         }
 
+        // MÉTODO UNIFICADO: Normaliza quitando acentos y estandarizando a mayúsculas para la BD
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
@@ -134,13 +139,10 @@ namespace CertiScan.ViewModels
             return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
         }
 
-        // --- SOLUCIÓN AL ERROR DE RUTA: Limpia puntos, dos puntos y símbolos ---
         private string LimpiarNombreParaRuta(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre)) return "Reporte";
             string seguro = NormalizarTexto(nombre);
-
-            // Reemplazamos cualquier carácter no alfanumérico por un guion bajo
             var sb = new StringBuilder();
             foreach (char c in seguro)
             {
@@ -167,6 +169,7 @@ namespace CertiScan.ViewModels
 
         private void UpdateSatButtonStates(bool realizada, bool huboHallazgo)
         {
+            ResultadoEncontradoSat = huboHallazgo; // Sincroniza la propiedad de resultado
             IsSatLimpioButtonEnabled = realizada && !huboHallazgo;
             IsSatHallazgoButtonEnabled = realizada && huboHallazgo;
             IsReporteSatEnabled = realizada;
@@ -177,25 +180,24 @@ namespace CertiScan.ViewModels
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
             string terminoLimpio = NormalizarTexto(TerminoBusqueda);
             var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "UIF");
+
             ResultadoEncontrado = resultados.Count > 0;
             _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", resultados.Select(d => d.NombreArchivo)) : string.Empty;
+
             UpdateConstanciaButtonStates(true);
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId, "UIF");
             LoadHistorial("UIF");
-            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA!" : "Sin coincidencias.");
+
+            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias en UIF.");
         }
 
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-
-            // 1. Normalizamos para la búsqueda interna
             string terminoLimpio = NormalizarTexto(TerminoBusquedaSat);
-
-            // 2. Realizamos la búsqueda en la base de datos
             var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "SAT");
 
-            // Lógica de proximidad por si el nombre está cortado en el PDF
+            // Lógica de respaldo por si el nombre está cortado
             if (resultados.Count == 0 && terminoLimpio.Contains(" "))
             {
                 string primerApellido = terminoLimpio.Split(' ')[0];
@@ -206,43 +208,42 @@ namespace CertiScan.ViewModels
             bool hallazgo = resultados.Count > 0;
             _fuenteHallazgoSat = hallazgo ? resultados.First().NombreArchivo : string.Empty;
 
-            // 3. Actualizamos estados de botones
             UpdateSatButtonStates(true, hallazgo);
-
-            // --- AQUÍ ESTÁ EL CAMBIO SOLICITADO ---
-            // QUITAMOS EL PREFIJO "SAT: " PARA QUE LA BASE DE DATOS QUEDE LIMPIA
-            // Antes tenías: _databaseService.RegistrarBusqueda("SAT: " + TerminoBusquedaSat, ...);
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
-
-            // 4. Recargamos el historial y mostramos aviso
             LoadHistorial("SAT");
-            MessageBox.Show(hallazgo ? "¡HALLAZGO EN LISTADO 69-B!" : "Sin coincidencias en SAT.");
+
+            if (hallazgo)
+                MessageBox.Show("🚨 ¡HALLAZGO EN LISTADO 69-B!", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
+            else
+                MessageBox.Show("✅ Sin coincidencias en SAT.", "CertiScan - SAT", MessageBoxButton.OK, MessageBoxImage.Information);
         }
+
         private void GenerarConstancia(bool esAprobatoria)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-
-                // --- SOLUCIÓN: Limpiamos el nombre quitando ":" y símbolos de la base de datos ---
                 string nombreSeguro = LimpiarNombreParaRuta(TerminoBusqueda);
-
-                // Creamos un nombre de archivo limpio, usando solo guiones bajos
                 string nombreFinal = $"Constancia_UIF_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
                 string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
+                var datos = new DatosNotaria
+                {
+                    NombreNotario = info?.NombreNotario ?? "No Configurado",
+                    NumeroNotaria = info?.NumeroNotaria ?? "0",
+                    DireccionCompleta = info?.Direccion ?? "No Configurada",
+                    DatosContacto = $"Tel: {info?.Telefono}"
+                };
 
-                List<string> listaArchivos = esAprobatoria ? DocumentosMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoUif };
+                List<string> listaArchivos = esAprobatoria
+                    ? DocumentosMostrados.Select(d => d.NombreArchivo).ToList()
+                    : new List<string> { _fuenteHallazgoUif };
 
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
                 new PdfViewerWindow(tempPath, TerminoBusqueda).ShowDialog();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al crear el archivo. Asegúrese de no usar caracteres prohibidos: " + ex.Message);
-            }
+            catch (Exception ex) { MessageBox.Show("Error al crear constancia UIF: " + ex.Message); }
         }
 
         private void GenerarReporteSat(bool esLimpio)
@@ -250,30 +251,28 @@ namespace CertiScan.ViewModels
             try
             {
                 if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-
-                // --- SOLUCIÓN: Limpiamos el nombre quitando ":" y símbolos del historial ---
                 string nombreSeguro = LimpiarNombreParaRuta(TerminoBusquedaSat);
-
-                // Reemplazamos cualquier ":" que venga de la BD por un guion bajo "_"
                 string nombreFinal = $"Constancia_SAT_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
                 string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada", DatosContacto = $"Tel: {info?.Telefono}" };
+                var datos = new DatosNotaria
+                {
+                    NombreNotario = info?.NombreNotario ?? "No Configurado",
+                    NumeroNotaria = info?.NumeroNotaria ?? "0",
+                    DireccionCompleta = info?.Direccion ?? "No Configurada",
+                    DatosContacto = $"Tel: {info?.Telefono}"
+                };
 
-                List<string> archivos = esLimpio ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoSat };
+                List<string> archivos = esLimpio
+                    ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList()
+                    : new List<string> { _fuenteHallazgoSat };
 
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, archivos, datos);
                 new PdfViewerWindow(tempPath, TerminoBusquedaSat).ShowDialog();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al crear el archivo SAT: " + ex.Message);
-            }
+            catch (Exception ex) { MessageBox.Show("Error al crear reporte SAT: " + ex.Message); }
         }
-
-        private void RefreshView() { TerminoBusqueda = string.Empty; UpdateConstanciaButtonStates(false); LoadAllDocuments(); LoadHistorial("UIF"); }
-        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; UpdateSatButtonStates(false, false); LoadAllDocuments(); LoadHistorial("SAT"); }
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
         {
@@ -285,14 +284,19 @@ namespace CertiScan.ViewModels
             }
         }
 
-        private async Task ProcesarDocumentoIndividualAsync(string r, string m)
+        private async Task ProcesarDocumentoIndividualAsync(string ruta, string modulo)
         {
             try
             {
-                string ext = Path.GetExtension(r).ToLower();
-                string c = ext == ".pdf" ? _pdfService.ExtraerTextoDePdf(r) : File.ReadAllText(r, Encoding.UTF8);
-                string contenidoLimpio = NormalizarTexto(c);
-                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(r), r, contenidoLimpio, SessionService.CurrentUserId, m);
+                string ext = Path.GetExtension(ruta).ToLower();
+                // Usamos el servicio correspondiente segun el modulo
+                string contenido = ext == ".pdf"
+                    ? (modulo == "SAT" ? _pdfSatService.ExtraerTextoDePdf(ruta) : _pdfService.ExtraerTextoDePdf(ruta))
+                    : File.ReadAllText(ruta, Encoding.UTF8);
+
+                // Normalizamos el contenido antes de guardarlo para que la búsqueda sea efectiva
+                string contenidoLimpio = NormalizarTexto(contenido);
+                await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenidoLimpio, SessionService.CurrentUserId, modulo);
             }
             catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); }
         }
@@ -307,6 +311,8 @@ namespace CertiScan.ViewModels
             });
         }
 
+        private void RefreshView() { TerminoBusqueda = string.Empty; UpdateConstanciaButtonStates(false); LoadAllDocuments(); LoadHistorial("UIF"); }
+        private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; UpdateSatButtonStates(false, false); LoadAllDocuments(); LoadHistorial("SAT"); }
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
         private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
     }

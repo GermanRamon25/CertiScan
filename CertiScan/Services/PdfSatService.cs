@@ -41,8 +41,13 @@ namespace CertiScan.Services
                                              .OrderByDescending(g => g.Key);
                             foreach (var line in lines)
                             {
+                                // Extraemos el texto de la línea
                                 string lineText = string.Join(" ", line.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text));
-                                textoProcesado.AppendLine(lineText);
+
+                                // APLICAMOS NORMALIZACIÓN AQUÍ
+                                string lineaLimpia = NormalizarParaBusqueda(lineText);
+
+                                textoProcesado.AppendLine(lineaLimpia);
                             }
                         }
                         textoProcesado.AppendLine();
@@ -180,6 +185,32 @@ namespace CertiScan.Services
             {
                 throw new Exception($"Error al generar el reporte SAT: {ex.Message}");
             }
+        }
+
+        // Agrega esto dentro de tu clase PdfSatService
+        private string NormalizarParaBusqueda(string texto)
+        {
+            if (string.IsNullOrEmpty(texto)) return string.Empty;
+
+            // Convertir a mayúsculas y quitar espacios en los extremos
+            texto = texto.ToUpper().Trim();
+
+            // Reemplazar acentos manualmente para asegurar compatibilidad
+            string conAcentos = "ÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÂÊÎÔÛ";
+            string sinAcentos = "AEIOUAEIOUAEIOUAEIOU";
+
+            for (int i = 0; i < conAcentos.Length; i++)
+            {
+                texto = texto.Replace(conAcentos[i], sinAcentos[i]);
+            }
+
+            // El caso de la Ñ es especial, normalmente se deja, 
+            // pero si el PDF falla, a veces se extrae como un caracter extraño.
+
+            // Quitar puntos, comas y exceso de espacios que el PDF genera al tabular
+            texto = System.Text.RegularExpressions.Regex.Replace(texto, @"\s+", " ");
+
+            return texto;
         }
     }
 }

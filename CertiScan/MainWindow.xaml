@@ -297,7 +297,7 @@
                     <Grid Grid.Row="0" Margin="15,15,15,10">
                         <StackPanel Orientation="Horizontal">
                             <Button Content="Cargar Listado" Width="130" Height="35" Style="{StaticResource ModernButtonStyle}" Command="{Binding CargarPdfSatCommand}"/>
-                            <TextBox Width="350" Margin="10,0" Style="{StaticResource ModernTextBox}" Tag="Buscar RFC o Razón Social..." Text="{Binding TerminoBusquedaSat, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="350" Margin="10,0" Style="{StaticResource ModernTextBox}" Tag="Nombre o denominación..." Text="{Binding TerminoBusquedaSat, UpdateSourceTrigger=PropertyChanged}"/>
                             <Button Content="Buscar" Width="100" Height="35" Style="{StaticResource ModernButtonStyle}" Background="{StaticResource SatColor}" Command="{Binding BuscarSatCommand}"/>
                             <Button Content="Eliminar PDF" Width="120" Margin="15,0,0,0" Style="{StaticResource EliminarStyle}" Command="{Binding DeletePdfSatCommand}"/>
                             <Button Content="Historial 69-B" Width="120" Margin="15,0,0,0" Style="{StaticResource ModernButtonStyle}" Click="VerHistorialSat_Click"/>
