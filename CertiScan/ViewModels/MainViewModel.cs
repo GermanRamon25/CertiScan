@@ -195,17 +195,13 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
 
-            // Se normaliza el término de búsqueda igual que en la extracción
             string terminoParaBD = NormalizarTexto(TerminoBusquedaSat);
-
-            // Búsqueda ESTRICTA (Sin el fallback del primer apellido que causaba errores)
             var resultados = _databaseService.BuscarTermino(terminoParaBD, SessionService.CurrentUserId, "SAT");
 
             bool hallazgo = resultados.Count > 0;
 
             if (hallazgo)
             {
-                // Priorizamos el archivo CSV si está entre los hallazgos
                 var resultadoCsv = resultados.FirstOrDefault(d => d.NombreArchivo.ToLower().EndsWith(".csv"));
                 _fuenteHallazgoSat = resultadoCsv != null ? resultadoCsv.NombreArchivo : resultados.First().NombreArchivo;
             }
@@ -292,15 +288,26 @@ namespace CertiScan.ViewModels
                 if (ext == ".csv")
                 {
                     var nombresLimpios = new StringBuilder();
+                    // Usar Encoding 1252 para leer caracteres latinos correctamente
                     var lineas = File.ReadAllLines(ruta, Encoding.GetEncoding("Windows-1252"));
 
-                    foreach (var linea in lineas.Skip(3))
+                    foreach (var linea in lineas)
                     {
-                        var campos = linea.Split(',');
+                        // Expresión regular para separar por comas pero ignorar comas dentro de comillas
+                        var campos = Regex.Split(linea, ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+
                         if (campos.Length > 2)
                         {
-                            string nombreRaw = campos[2].Replace("\"", "");
-                            nombresLimpios.AppendLine(NormalizarTexto(nombreRaw));
+                            string nombreRaw = campos[2].Replace("\"", "").Trim();
+
+                            // Filtrar: Ignorar si está vacío o si es la fila de encabezados
+                            if (!string.IsNullOrEmpty(nombreRaw) &&
+                                !nombreRaw.Contains("Nombre") &&
+                                !nombreRaw.Contains("RFC") &&
+                                !nombreRaw.Contains("Informacion"))
+                            {
+                                nombresLimpios.AppendLine(NormalizarTexto(nombreRaw));
+                            }
                         }
                     }
                     contenidoFinal = nombresLimpios.ToString();
