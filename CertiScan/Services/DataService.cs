@@ -44,6 +44,29 @@ namespace CertiScan.Services
             }
             return null;
         }
+        // Agrega este método dentro de la clase DatabaseService, 
+        // preferiblemente en la sección de GESTIÓN DE NOTARÍA.
+
+        public bool ExisteTelefonoEnOtraNotaria(string telefono, int miNotariaId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                // Esta consulta busca si el teléfono ya existe en un registro 
+                // que TENGA un ID diferente al de la notaría que está intentando guardar.
+                var query = "SELECT COUNT(1) FROM Notaria WHERE Telefono = @Telefono AND Id <> @Id";
+
+                using (var command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Telefono", (object)telefono ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@Id", miNotariaId);
+
+                    // Si el conteo es mayor a 0, significa que otra notaría ya usa ese número.
+                    return (int)command.ExecuteScalar() > 0;
+                }
+            }
+        }
+
 
         public bool ActualizarNotaria(NotariaInfo info)
         {
@@ -145,6 +168,7 @@ namespace CertiScan.Services
                 }
             }
         }
+
 
         // ============================================================
         // DOCUMENTOS Y CARGAS

@@ -43,7 +43,7 @@ namespace CertiScan
                 return;
             }
 
-            // 2. Validación de teléfono (10 dígitos)
+            // 2. Validación de formato de teléfono (10 dígitos)
             string telefono = txtTelefono.Text.Trim();
             if (telefono.Length != 10 || !long.TryParse(telefono, out _))
             {
@@ -51,7 +51,16 @@ namespace CertiScan
                 return;
             }
 
-            // 3. NUEVA VALIDACIÓN: Correo electrónico con @ y formato válido
+            // 3. NUEVA VALIDACIÓN: Teléfono duplicado en la base de datos
+            // Se verifica que el teléfono no pertenezca a otra notaría (Id distinto al actual)
+            int miNotariaId = SessionService.UsuarioLogueado.NotariaId;
+            if (_dataService.ExisteTelefonoEnOtraNotaria(telefono, miNotariaId))
+            {
+                MessageBox.Show("Este número de teléfono ya está registrado por otra notaría en el sistema.", "Teléfono Duplicado", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // 4. Validación de correo electrónico con @ y formato válido
             string email = txtEmail.Text.Trim();
             if (!ValidarEmail(email))
             {
@@ -61,7 +70,7 @@ namespace CertiScan
 
             var info = new NotariaInfo
             {
-                Id = SessionService.UsuarioLogueado.NotariaId,
+                Id = miNotariaId,
                 NombreNotario = txtNombre.Text,
                 NumeroNotaria = txtNumero.Text,
                 Direccion = txtDireccion.Text,
