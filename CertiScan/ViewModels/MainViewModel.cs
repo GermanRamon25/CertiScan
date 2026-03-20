@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace CertiScan.ViewModels
+namespace CertiScan.ViewModels 
 {
     public class MainViewModel : ObservableObject
     {
@@ -124,19 +124,29 @@ namespace CertiScan.ViewModels
             LoadHistorial("UIF");
         }
 
+        // NORMALIZACIÓN ULTRA: Limpia todo rastro de puntuación y espacios raros
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
-            string temp = Regex.Replace(texto.Trim(), @"\s+", " ").ToUpper();
-            var normalizedString = temp.Normalize(NormalizationForm.FormD);
+
+            // Reemplazar saltos de línea y tabuladores por espacios simples
+            string limpio = texto.Replace("\r", " ").Replace("\n", " ").Replace("\t", " ");
+
+            // Quitar comillas, puntos y comas
+            limpio = limpio.Replace("\"", "").Replace(".", "").Replace(",", "");
+
+            // Estandarizar espacios múltiples
+            limpio = Regex.Replace(limpio.Trim(), @"\s+", " ").ToUpper();
+
+            // Quitar acentos
+            var normalizedString = limpio.Normalize(NormalizationForm.FormD);
             var stringBuilder = new StringBuilder();
             foreach (var c in normalizedString)
             {
-                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
-                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
                     stringBuilder.Append(c);
             }
-            return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC).Trim();
         }
 
         private string LimpiarNombreParaRuta(string nombre)
@@ -288,25 +298,29 @@ namespace CertiScan.ViewModels
                 if (ext == ".csv")
                 {
                     var nombresLimpios = new StringBuilder();
-                    // Usar Encoding 1252 para leer caracteres latinos correctamente
-                    var lineas = File.ReadAllLines(ruta, Encoding.GetEncoding("Windows-1252"));
+                    // Leer el archivo completo como una sola cadena para manejar saltos de línea dentro de campos
+                    string textoCompleto = File.ReadAllText(ruta, Encoding.GetEncoding("Windows-1252"));
 
-                    foreach (var linea in lineas)
+                    // Regex para separar líneas respetando comillas que contienen saltos de línea
+                    var lineasCsv = Regex.Split(textoCompleto, @"\r?\n(?=(?:[^\""]*\""[^\""]*\"")*[^\""]*$)");
+
+                    foreach (var linea in lineasCsv)
                     {
-                        // Expresión regular para separar por comas pero ignorar comas dentro de comillas
                         var campos = Regex.Split(linea, ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
                         if (campos.Length > 2)
                         {
-                            string nombreRaw = campos[2].Replace("\"", "").Trim();
+                            string nombreRaw = campos[2].Trim();
 
-                            // Filtrar: Ignorar si está vacío o si es la fila de encabezados
                             if (!string.IsNullOrEmpty(nombreRaw) &&
-                                !nombreRaw.Contains("Nombre") &&
-                                !nombreRaw.Contains("RFC") &&
-                                !nombreRaw.Contains("Informacion"))
+                                !nombreRaw.Contains("Nombre del Contribuyente") &&
+                                !nombreRaw.Contains("Información actualizada"))
                             {
-                                nombresLimpios.AppendLine(NormalizarTexto(nombreRaw));
+                                string normalizado = NormalizarTexto(nombreRaw);
+                                if (!string.IsNullOrEmpty(normalizado))
+                                {
+                                    nombresLimpios.AppendLine(normalizado);
+                                }
                             }
                         }
                     }
@@ -342,4 +356,4 @@ namespace CertiScan.ViewModels
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
         private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
     }
-}
+} 

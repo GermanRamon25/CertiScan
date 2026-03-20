@@ -2,6 +2,7 @@
 using System.Windows;
 using CertiScan.Models;
 using CertiScan.Services;
+using System.Text.RegularExpressions; // Necesario para la validación del @
 
 namespace CertiScan
 {
@@ -22,10 +23,7 @@ namespace CertiScan
                 var info = _dataService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
                 if (info != null)
                 {
-                    // CORRECCIÓN: Si el nombre es el de por defecto "Nueva Notaría", 
-                    // lo dejamos vacío para que el usuario escriba su nombre real.
                     txtNombre.Text = info.NombreNotario == "Nueva Notaría" ? "" : info.NombreNotario;
-
                     txtNumero.Text = info.NumeroNotaria;
                     txtDireccion.Text = info.Direccion;
                     txtTelefono.Text = info.Telefono;
@@ -38,18 +36,26 @@ namespace CertiScan
         {
             if (SessionService.UsuarioLogueado == null) return;
 
-            // Validación de campos obligatorios mínimos
+            // 1. Validación de nombre obligatorio
             if (string.IsNullOrWhiteSpace(txtNombre.Text))
             {
-                MessageBox.Show("El nombre del notario es obligatorio.");
+                MessageBox.Show("El nombre del notario es obligatorio.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // Validación de teléfono de 10 dígitos
+            // 2. Validación de teléfono (10 dígitos)
             string telefono = txtTelefono.Text.Trim();
             if (telefono.Length != 10 || !long.TryParse(telefono, out _))
             {
-                MessageBox.Show("El teléfono debe tener exactamente 10 dígitos.");
+                MessageBox.Show("El teléfono debe tener exactamente 10 dígitos numéricos.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 3. NUEVA VALIDACIÓN: Correo electrónico con @ y formato válido
+            string email = txtEmail.Text.Trim();
+            if (!ValidarEmail(email))
+            {
+                MessageBox.Show("Por favor, ingrese un correo electrónico válido (debe contener '@' y un dominio).", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -60,19 +66,15 @@ namespace CertiScan
                 NumeroNotaria = txtNumero.Text,
                 Direccion = txtDireccion.Text,
                 Telefono = telefono,
-                Email = txtEmail.Text
+                Email = email
             };
 
             if (_dataService.ActualizarNotaria(info))
             {
                 MessageBox.Show("Información sincronizada exitosamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                // CORRECCIÓN DE FLUJO: 
-                // Abrimos el programa principal automáticamente después de configurar.
                 MainWindow main = new MainWindow();
                 main.Show();
-
-                // Cerramos esta ventana de configuración.
                 this.Close();
             }
             else
@@ -81,9 +83,18 @@ namespace CertiScan
             }
         }
 
+        // Función auxiliar para validar el formato del correo
+        private bool ValidarEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+
+            // Esta expresión regular verifica que tenga texto, luego un @, luego más texto y un punto.
+            string patron = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            return Regex.IsMatch(email, patron);
+        }
+
         private void Cancelar_Click(object sender, RoutedEventArgs e)
         {
-            // Si el usuario cancela, simplemente cerramos la ventana.
             this.Close();
         }
     }
