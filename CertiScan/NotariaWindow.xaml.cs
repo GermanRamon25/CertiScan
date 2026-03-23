@@ -90,7 +90,7 @@ namespace CertiScan
             {
                 MessageBox.Show("No se encontró el registro de notaría para actualizar.");
             }
-        }
+        } 
 
         // Función auxiliar para validar el formato del correo
         private bool ValidarEmail(string email)
