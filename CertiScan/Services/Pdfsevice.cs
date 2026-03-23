@@ -116,13 +116,19 @@ namespace CertiScan.Services
                             {
                                 text.Justify();
                                 text.Span("Con fundamento en lo dispuesto por el artículo 115 de la Ley de Instituciones de Crédito vigente relativas a la lista de personas bloqueadas y atendiendo a la obligación del suscrito notario impuesta por diversas disposiciones legales tales como el numeral 17, fracción XII, apartado A, de la Ley Federal para la Identificación de Operaciones con Recursos de Procedencia Ilícita, sus demás artículos correlativos del Reglamento de la materia, así como los artículos 27 y 38 de las Reglas de Carácter General de dichos ordenamientos, hago constar que el personal de esta notaría a mi cargo con esta fecha ");
-                                text.Span($"{DateTime.Now:dd/MM/yyyy}").Bold();
                                 text.Span(" realizó la búsqueda y verificó en las listas proporcionadas por la Unidad de Inteligencia Financiera del Servicio de Administración Tributaria, las cuales fueron descargadas directamente de su portal https://sppld.sat.gob.mx/pld/index.html, y después de cotejar dichos listados, se encontró el siguiente resultado:");
                             });
+                            col.Item().PaddingTop(20).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(innerCol =>
+                            {
+                                innerCol.Item().Text(text => {
+                                    text.Span("NOMBRE O DENOMINACIÓN: ").Bold();
+                                    text.Span(terminoBuscado.ToUpper());
+                                });
 
-                            col.Item().PaddingTop(25).Text(text => {
-                                text.Span("Nombre o Denominación: ").Bold();
-                                text.Span(terminoBuscado.ToUpper()).Bold();
+                                innerCol.Item().PaddingTop(5).Text(text => {
+                                    text.Span("FECHA DE CONSULTA: ").Bold();
+                                    text.Span($"{DateTime.Now:dd/MM/yyyy HH:mm} horas");
+                                });
                             });
 
                             // RESULTADO SI/NO (Texto simple, sin recuadros)
