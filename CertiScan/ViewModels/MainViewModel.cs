@@ -188,11 +188,35 @@ namespace CertiScan.ViewModels
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-            string terminoLimpio = NormalizarTexto(TerminoBusqueda);
-            var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "UIF");
 
-            ResultadoEncontrado = resultados.Count > 0;
-            _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", resultados.Select(d => d.NombreArchivo)) : string.Empty;
+            // 1. Normalizamos el término de búsqueda
+            string terminoLimpio = NormalizarTexto(TerminoBusqueda);
+
+            // 2. Traemos los documentos del usuario (puedes crear un método que traiga todo el contenido)
+            var documentos = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
+
+            bool hallazgoUif = false;
+            List<string> archivosConCoincidencia = new List<string>();
+
+            foreach (var doc in documentos)
+            {
+                // 3. Separamos el contenido del documento por líneas
+                var lineas = doc.Contenido.Split(new[] { Environment.NewLine, "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+                // 4. Buscamos la coincidencia EXACTA en cada línea
+                foreach (var linea in lineas)
+                {
+                    if (linea.Trim() == terminoLimpio)
+                    {
+                        hallazgoUif = true;
+                        archivosConCoincidencia.Add(doc.NombreArchivo);
+                        break; // Ya encontramos coincidencia en este archivo, pasamos al siguiente
+                    }
+                }
+            }
+
+            ResultadoEncontrado = hallazgoUif;
+            _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", archivosConCoincidencia) : string.Empty;
 
             UpdateConstanciaButtonStates(true);
             _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId, "UIF");
