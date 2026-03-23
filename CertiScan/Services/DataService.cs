@@ -369,7 +369,7 @@ namespace CertiScan.Services
         }
 
         // ============================================================
-        // MÉTODO DE BÚSQUEDA INTELIGENTE SAT
+        // MÉTODO DE BÚSQUEDA INTELIGENTE SAT - CORREGIDO (TESTER APPROVED)
         // ============================================================
         public DataTable BuscarEnListadoSat(string termino)
         {
@@ -379,24 +379,31 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                termino = termino.Trim();
-                string[] palabras = termino.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
+                // 1. Limpieza de entrada: Quitamos puntos y comas que causan falsos negativos en abreviaturas
+                string terminoLimpio = termino.Replace(".", "").Replace(",", "").Trim();
+
+                // 2. Dividimos por espacios para búsqueda por palabras
+                string[] palabras = terminoLimpio.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                // Usamos COLLATE Latin1_General_CI_AI para ignorar ACENTOS y MAYÚSCULAS/MINÚSCULAS
+                // Usamos REPLACE en la columna para ignorar los puntos guardados en la base de datos
                 string query = @"SELECT TOP 100 RFC, NombreContribuyente, Situacion 
-                                 FROM ListadoSat69B 
-                                 WHERE LTRIM(RTRIM(RFC)) LIKE @TerminoExacto 
-                                 OR (";
+                         FROM ListadoSat69B 
+                         WHERE RFC LIKE @TerminoExacto COLLATE Latin1_General_CI_AI
+                         OR (";
 
                 for (int i = 0; i < palabras.Length; i++)
                 {
                     if (i > 0) query += " AND ";
-                    query += $"LTRIM(RTRIM(NombreContribuyente)) LIKE @P{i}";
+                    // Reemplazamos puntos y comas en la columna de la BD en tiempo de ejecución para comparar con el texto limpio
+                    query += $"REPLACE(REPLACE(NombreContribuyente, '.', ''), ',', '') LIKE @P{i} COLLATE Latin1_General_CI_AI";
                 }
                 query += ")";
 
                 using (var command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@TerminoExacto", "%" + termino + "%");
+                    command.Parameters.AddWithValue("@TerminoExacto", "%" + terminoLimpio + "%");
                     for (int i = 0; i < palabras.Length; i++)
                     {
                         command.Parameters.AddWithValue($"@P{i}", "%" + palabras[i] + "%");
