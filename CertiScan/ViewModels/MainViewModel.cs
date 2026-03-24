@@ -188,17 +188,62 @@ namespace CertiScan.ViewModels
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-            string terminoLimpio = NormalizarTexto(TerminoBusqueda);
-            var resultados = _databaseService.BuscarTermino(terminoLimpio, SessionService.CurrentUserId, "UIF");
 
-            ResultadoEncontrado = resultados.Count > 0;
-            _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", resultados.Select(d => d.NombreArchivo)) : string.Empty;
+            // 1. Normalizamos el nombre que escribió el usuario
+            string terminoLimpio = NormalizarTexto(TerminoBusqueda).Trim();
 
-            UpdateConstanciaButtonStates(true);
-            _databaseService.RegistrarBusqueda(TerminoBusqueda, ResultadoEncontrado, SessionService.CurrentUserId, "UIF");
+            // 2. Obtenemos los documentos de la base de datos
+            var documentos = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
+
+            bool hallazgoUif = false;
+            List<string> archivosConCoincidencia = new List<string>();
+
+            foreach (var doc in documentos)
+            {
+                // --- CORRECCIÓN ERROR DE HILO ---
+                string textoCompleto = string.Empty;
+                // Le pedimos permiso al hilo de la UI para leer el contenido
+                Application.Current.Dispatcher.Invoke(() => {
+                    textoCompleto = doc.Contenido ?? string.Empty;
+                });
+
+                if (string.IsNullOrEmpty(textoCompleto)) continue;
+
+                // --- CORRECCIÓN BÚSQUEDA POR NOMBRE COMPLETO ---
+                // Separamos el PDF en líneas (asumiendo que cada nombre es una línea)
+                var lineas = textoCompleto.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var linea in lineas)
+                {
+                    string nombreEnLista = linea.Trim();
+
+                    // Usamos Equals para que "JAMAL" NO sea igual a "MUHAMMAD JAMAL"
+                    // Solo será verdadero si la línea es EXACTAMENTE igual al término buscado
+                    if (nombreEnLista.Equals(terminoLimpio, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hallazgoUif = true;
+                        if (!archivosConCoincidencia.Contains(doc.NombreArchivo))
+                            archivosConCoincidencia.Add(doc.NombreArchivo);
+                        break;
+                    }
+                }
+            }
+
+            // 3. Actualizamos la interfaz (UI)
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                ResultadoEncontrado = hallazgoUif;
+                _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", archivosConCoincidencia) : string.Empty;
+                UpdateConstanciaButtonStates(true);
+
+                if (ResultadoEncontrado)
+                    MessageBox.Show($"¡COINCIDENCIA EXACTA ENCONTRADA!\nNombre: {terminoLimpio}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
+                else
+                    MessageBox.Show("No se encontró el nombre completo exacto.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+
+            _databaseService.RegistrarBusqueda(TerminoBusqueda, hallazgoUif, SessionService.CurrentUserId, "UIF");
             LoadHistorial("UIF");
-
-            MessageBox.Show(ResultadoEncontrado ? "¡COINCIDENCIA ENCONTRADA EN UIF!" : "Sin coincidencias en UIF.");
         }
 
         private void BuscarSat()
