@@ -191,42 +191,43 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
 
-            // 1. Normalizamos el término de búsqueda una sola vez
-            string terminoLimpio = NormalizarTexto(TerminoBusqueda);
+            // 1. Preparamos el nombre (Mayúsculas y sin acentos)
+            string terminoLimpio = NormalizarTexto(TerminoBusqueda).Trim();
 
-            // 2. Traemos los documentos (trae la lista completa para procesar)
-            var documentos = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
+            // 2. Obtenemos los documentos de la BD
+            var documentosBd = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
 
             bool hallazgoUif = false;
             List<string> archivosConCoincidencia = new List<string>();
 
-            foreach (var doc in documentos)
+            foreach (var doc in documentosBd)
             {
-                // EXTRAER EL CONTENIDO: Usamos el Dispatcher para evitar el error 'thread owns it'
-                string contenidoDocumento = string.Empty;
+                string contenidoParaBuscar = string.Empty;
+                string nombreArchivoActual = string.Empty;
+
+                // EXTRAEMOS LOS DATOS DE FORMA SEGURA (Evita el error de hilos)
                 Application.Current.Dispatcher.Invoke(() => {
-                    contenidoDocumento = doc.Contenido ?? string.Empty;
+                    contenidoParaBuscar = doc.Contenido ?? string.Empty;
+                    nombreArchivoActual = doc.NombreArchivo ?? "Archivo";
                 });
 
-                if (string.IsNullOrEmpty(contenidoDocumento)) continue;
+                if (string.IsNullOrEmpty(contenidoParaBuscar)) continue;
 
-                // 3. SEPARAR POR LÍNEAS: Cada línea suele ser un nombre completo en las listas negras
-                var lineas = contenidoDocumento.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                // SOLUCIÓN AL "SIN COINCIDENCIAS":
+                // Usamos \b para indicar "límite de palabra". 
+                // Esto permite encontrar el nombre completo exacto aunque tenga 
+                // un número de lista o un punto al lado en el PDF.
+                string patron = $@"\b{Regex.Escape(terminoLimpio)}\b";
 
-                foreach (var linea in lineas)
+                if (Regex.IsMatch(contenidoParaBuscar, patron, RegexOptions.IgnoreCase))
                 {
-                    // COMPARACIÓN EXACTA: Solo es positivo si la línea completa es igual al nombre buscado
-                    if (linea.Trim().Equals(terminoLimpio, StringComparison.OrdinalIgnoreCase))
-                    {
-                        hallazgoUif = true;
-                        if (!archivosConCoincidencia.Contains(doc.NombreArchivo))
-                            archivosConCoincidencia.Add(doc.NombreArchivo);
-                        break;
-                    }
+                    hallazgoUif = true;
+                    if (!archivosConCoincidencia.Contains(nombreArchivoActual))
+                        archivosConCoincidencia.Add(nombreArchivoActual);
                 }
             }
 
-            // 4. ACTUALIZAR INTERFAZ: Todo lo visual debe ir en el Invoke
+            // 3. Actualizamos la interfaz
             Application.Current.Dispatcher.Invoke(() =>
             {
                 ResultadoEncontrado = hallazgoUif;
@@ -234,12 +235,11 @@ namespace CertiScan.ViewModels
                 UpdateConstanciaButtonStates(true);
 
                 if (ResultadoEncontrado)
-                    MessageBox.Show("¡COINCIDENCIA EXACTA ENCONTRADA EN UIF!", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\nSe localizó el nombre completo: {terminoLimpio}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
                 else
-                    MessageBox.Show("Sin coincidencias exactas en UIF.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("No se encontraron coincidencias exactas para ese nombre.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
             });
 
-            // Registrar la búsqueda en el historial
             _databaseService.RegistrarBusqueda(TerminoBusqueda, hallazgoUif, SessionService.CurrentUserId, "UIF");
             LoadHistorial("UIF");
         }
