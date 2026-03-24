@@ -31,6 +31,8 @@ namespace CertiScan.ViewModels
 
         // --- MÓDULO UIF ---
         private string _terminoBusqueda = string.Empty;
+
+       
         public string TerminoBusqueda
         {
             get => _terminoBusqueda;
@@ -189,10 +191,10 @@ namespace CertiScan.ViewModels
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
 
-            // 1. Normalizamos el nombre que escribió el usuario
-            string terminoLimpio = NormalizarTexto(TerminoBusqueda).Trim();
+            // 1. Normalizamos el término de búsqueda una sola vez
+            string terminoLimpio = NormalizarTexto(TerminoBusqueda);
 
-            // 2. Obtenemos los documentos de la base de datos
+            // 2. Traemos los documentos (trae la lista completa para procesar)
             var documentos = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
 
             bool hallazgoUif = false;
@@ -200,26 +202,21 @@ namespace CertiScan.ViewModels
 
             foreach (var doc in documentos)
             {
-                // --- CORRECCIÓN ERROR DE HILO ---
-                string textoCompleto = string.Empty;
-                // Le pedimos permiso al hilo de la UI para leer el contenido
+                // EXTRAER EL CONTENIDO: Usamos el Dispatcher para evitar el error 'thread owns it'
+                string contenidoDocumento = string.Empty;
                 Application.Current.Dispatcher.Invoke(() => {
-                    textoCompleto = doc.Contenido ?? string.Empty;
+                    contenidoDocumento = doc.Contenido ?? string.Empty;
                 });
 
-                if (string.IsNullOrEmpty(textoCompleto)) continue;
+                if (string.IsNullOrEmpty(contenidoDocumento)) continue;
 
-                // --- CORRECCIÓN BÚSQUEDA POR NOMBRE COMPLETO ---
-                // Separamos el PDF en líneas (asumiendo que cada nombre es una línea)
-                var lineas = textoCompleto.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                // 3. SEPARAR POR LÍNEAS: Cada línea suele ser un nombre completo en las listas negras
+                var lineas = contenidoDocumento.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (var linea in lineas)
                 {
-                    string nombreEnLista = linea.Trim();
-
-                    // Usamos Equals para que "JAMAL" NO sea igual a "MUHAMMAD JAMAL"
-                    // Solo será verdadero si la línea es EXACTAMENTE igual al término buscado
-                    if (nombreEnLista.Equals(terminoLimpio, StringComparison.OrdinalIgnoreCase))
+                    // COMPARACIÓN EXACTA: Solo es positivo si la línea completa es igual al nombre buscado
+                    if (linea.Trim().Equals(terminoLimpio, StringComparison.OrdinalIgnoreCase))
                     {
                         hallazgoUif = true;
                         if (!archivosConCoincidencia.Contains(doc.NombreArchivo))
@@ -229,7 +226,7 @@ namespace CertiScan.ViewModels
                 }
             }
 
-            // 3. Actualizamos la interfaz (UI)
+            // 4. ACTUALIZAR INTERFAZ: Todo lo visual debe ir en el Invoke
             Application.Current.Dispatcher.Invoke(() =>
             {
                 ResultadoEncontrado = hallazgoUif;
@@ -237,11 +234,12 @@ namespace CertiScan.ViewModels
                 UpdateConstanciaButtonStates(true);
 
                 if (ResultadoEncontrado)
-                    MessageBox.Show($"¡COINCIDENCIA EXACTA ENCONTRADA!\nNombre: {terminoLimpio}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("¡COINCIDENCIA EXACTA ENCONTRADA EN UIF!", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
                 else
-                    MessageBox.Show("No se encontró el nombre completo exacto.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Sin coincidencias exactas en UIF.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
             });
 
+            // Registrar la búsqueda en el historial
             _databaseService.RegistrarBusqueda(TerminoBusqueda, hallazgoUif, SessionService.CurrentUserId, "UIF");
             LoadHistorial("UIF");
         }

@@ -13,5 +13,6 @@ namespace CertiScan.Models
         public DateTime FechaCarga { get; set; }
 
         public string RutaArchivo { get; set; }
+        public string Contenido { get;  set; }
     }
 }
