@@ -11,6 +11,7 @@ namespace CertiScan.Services
 {
     public class DatabaseService
     {
+        // Esta es la ÚNICA declaración permitida de la cadena de conexión
         private readonly string _connectionString = ConfigurationManager.ConnectionStrings["CertiScanDBConnection"].ConnectionString;
 
         // ==========================================
@@ -44,29 +45,21 @@ namespace CertiScan.Services
             }
             return null;
         }
-        // Agrega este método dentro de la clase DatabaseService, 
-        // preferiblemente en la sección de GESTIÓN DE NOTARÍA.
 
         public bool ExisteTelefonoEnOtraNotaria(string telefono, int miNotariaId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                // Esta consulta busca si el teléfono ya existe en un registro 
-                // que TENGA un ID diferente al de la notaría que está intentando guardar.
                 var query = "SELECT COUNT(1) FROM Notaria WHERE Telefono = @Telefono AND Id <> @Id";
-
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Telefono", (object)telefono ?? DBNull.Value);
                     command.Parameters.AddWithValue("@Id", miNotariaId);
-
-                    // Si el conteo es mayor a 0, significa que otra notaría ya usa ese número.
                     return (int)command.ExecuteScalar() > 0;
                 }
             }
         }
-
 
         public bool ActualizarNotaria(NotariaInfo info)
         {
@@ -132,7 +125,7 @@ namespace CertiScan.Services
                     int newNotariaId;
                     using (var notariaCommand = new SqlCommand(insertNotariaQuery, connection, transaction))
                     {
-                        newNotariaId = (int)notariaCommand.ExecuteScalar();
+                        newNotariaId = Convert.ToInt32(notariaCommand.ExecuteScalar());
                     }
                     var insertUserQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password, NotariaId) VALUES (@FullName, @Username, @Password, @NotariaId)";
                     using (var userCommand = new SqlCommand(insertUserQuery, connection, transaction))
@@ -169,7 +162,6 @@ namespace CertiScan.Services
             }
         }
 
-
         // ============================================================
         // DOCUMENTOS Y CARGAS
         // ============================================================
@@ -179,7 +171,7 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT TOP 100 Id, NombreArchivo, FechaCarga FROM Documentos WHERE UsuarioId = @UID AND TipoModulo = @TM ORDER BY FechaCarga DESC";
+                var query = "SELECT TOP 100 Id, NombreArchivo, FechaCarga, ContenidoTexto FROM Documentos WHERE UsuarioId = @UID AND TipoModulo = @TM ORDER BY FechaCarga DESC";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@UID", usuarioId);
@@ -188,7 +180,13 @@ namespace CertiScan.Services
                     {
                         while (reader.Read())
                         {
-                            resultados.Add(new Documento { Id = reader.GetInt32(0), NombreArchivo = reader.GetString(1), FechaCarga = reader.GetDateTime(2) });
+                            resultados.Add(new Documento
+                            {
+                                Id = reader.GetInt32(0),
+                                NombreArchivo = reader.GetString(1),
+                                FechaCarga = reader.GetDateTime(2),
+                                ContenidoTexto = reader.IsDBNull(3) ? string.Empty : reader.GetString(3)
+                            });
                         }
                     }
                 }
@@ -202,23 +200,29 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = @"SELECT TOP 100 Id, NombreArchivo, FechaCarga 
+                var query = @"SELECT TOP 100 Id, NombreArchivo, FechaCarga, ContenidoTexto
                              FROM Documentos 
                              WHERE UsuarioId = @UID AND TipoModulo = @TM 
-                             AND CONTAINS(ContenidoTexto, @Termino)
+                             AND ContenidoTexto LIKE @Termino
                              ORDER BY FechaCarga DESC";
 
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@UID", usuarioId);
                     command.Parameters.AddWithValue("@TM", tipoModulo);
-                    command.Parameters.AddWithValue("@Termino", $"\"*{termino}*\"");
+                    command.Parameters.AddWithValue("@Termino", "%" + termino + "%");
 
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            resultados.Add(new Documento { Id = reader.GetInt32(0), NombreArchivo = reader.GetString(1), FechaCarga = reader.GetDateTime(2) });
+                            resultados.Add(new Documento
+                            {
+                                Id = reader.GetInt32(0),
+                                NombreArchivo = reader.GetString(1),
+                                FechaCarga = reader.GetDateTime(2),
+                                ContenidoTexto = reader.IsDBNull(3) ? string.Empty : reader.GetString(3)
+                            });
                         }
                     }
                 }
@@ -244,53 +248,6 @@ namespace CertiScan.Services
             }
         }
 
-        public async Task CargaMasivaListadoSatAsync(DataTable dtSat)
-        {
-            try
-            {
-                for (int i = dtSat.Rows.Count - 1; i >= 0; i--)
-                {
-                    DataRow dr = dtSat.Rows[i];
-                    string primeraColumna = dr[0].ToString();
-                    string segundaColumna = dr[1].ToString();
-
-                    if (primeraColumna.Contains("Información actualizada") ||
-                        primeraColumna.Contains("Listado completo") ||
-                        primeraColumna.Equals("No") ||
-                        segundaColumna.Equals("RFC"))
-                    {
-                        dr.Delete();
-                    }
-                }
-                dtSat.AcceptChanges();
-
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    await connection.OpenAsync();
-                    using (var cmd = new SqlCommand("DELETE FROM ListadoSat69B", connection))
-                    {
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-
-                    using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
-                    {
-                        bulkCopy.DestinationTableName = "ListadoSat69B";
-                        bulkCopy.BatchSize = 5000;
-                        bulkCopy.ColumnMappings.Clear();
-                        bulkCopy.ColumnMappings.Add(1, "RFC");
-                        bulkCopy.ColumnMappings.Add(2, "NombreContribuyente");
-                        bulkCopy.ColumnMappings.Add(3, "Situacion");
-                        await bulkCopy.WriteToServerAsync(dtSat);
-                    }
-                }
-                System.Windows.MessageBox.Show("Carga finalizada con éxito.", "CertiScan");
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show("Error al cargar los datos: " + ex.Message, "Error de Sistema");
-            }
-        }
-
         public string GetDocumentoContent(int documentoId)
         {
             using (var connection = new SqlConnection(_connectionString))
@@ -307,7 +264,7 @@ namespace CertiScan.Services
         }
 
         // ==========================================
-        // HISTORIAL Y OTROS - CORREGIDO PARA SEPARAR MÓDULOS
+        // HISTORIAL Y REGISTRO
         // ==========================================
         public List<BusquedaHistorial> GetSearchHistory(int usuarioId, string nombreUsuario, string tipoModulo)
         {
@@ -316,14 +273,11 @@ namespace CertiScan.Services
             {
                 connection.Open();
                 bool esAdmin = (nombreUsuario.ToLower() == "admin");
-
-                // Filtramos obligatoriamente por el módulo (UIF o SAT)
                 string query = @"SELECT u.NombreUsuario, b.TerminoBuscado, b.FechaCarga, b.ResultadoEncontrado, b.Modulo 
                                 FROM Busquedas b JOIN Usuarios u ON b.UsuarioId = u.Id 
                                 WHERE b.Modulo = @Modulo";
 
                 if (!esAdmin) query += " AND b.UsuarioId = @UsuarioId";
-
                 query += " ORDER BY b.FechaCarga DESC";
 
                 using (var command = new SqlCommand(query, connection))
@@ -355,7 +309,6 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                // Ahora insertamos también el nombre del módulo
                 var query = "INSERT INTO Busquedas (TerminoBuscado, ResultadoEncontrado, UsuarioId, Modulo) VALUES (@T, @RE, @UID, @MOD)";
                 using (var command = new SqlCommand(query, connection))
                 {
@@ -368,9 +321,6 @@ namespace CertiScan.Services
             }
         }
 
-        // ============================================================
-        // MÉTODO DE BÚSQUEDA INTELIGENTE SAT - CORREGIDO (TESTER APPROVED)
-        // ============================================================
         public DataTable BuscarEnListadoSat(string termino)
         {
             DataTable dt = new DataTable();
@@ -379,15 +329,9 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-
-                // 1. Limpieza de entrada: Quitamos puntos y comas que causan falsos negativos en abreviaturas
                 string terminoLimpio = termino.Replace(".", "").Replace(",", "").Trim();
-
-                // 2. Dividimos por espacios para búsqueda por palabras
                 string[] palabras = terminoLimpio.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                // Usamos COLLATE Latin1_General_CI_AI para ignorar ACENTOS y MAYÚSCULAS/MINÚSCULAS
-                // Usamos REPLACE en la columna para ignorar los puntos guardados en la base de datos
                 string query = @"SELECT TOP 100 RFC, NombreContribuyente, Situacion 
                          FROM ListadoSat69B 
                          WHERE RFC LIKE @TerminoExacto COLLATE Latin1_General_CI_AI
@@ -396,7 +340,6 @@ namespace CertiScan.Services
                 for (int i = 0; i < palabras.Length; i++)
                 {
                     if (i > 0) query += " AND ";
-                    // Reemplazamos puntos y comas en la columna de la BD en tiempo de ejecución para comparar con el texto limpio
                     query += $"REPLACE(REPLACE(NombreContribuyente, '.', ''), ',', '') LIKE @P{i} COLLATE Latin1_General_CI_AI";
                 }
                 query += ")";
