@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace CertiScan.ViewModels 
+namespace CertiScan.ViewModels
 {
     public class MainViewModel : ObservableObject
     {
@@ -31,8 +31,6 @@ namespace CertiScan.ViewModels
 
         // --- MÓDULO UIF ---
         private string _terminoBusqueda = string.Empty;
-
-       
         public string TerminoBusqueda
         {
             get => _terminoBusqueda;
@@ -126,21 +124,13 @@ namespace CertiScan.ViewModels
             LoadHistorial("UIF");
         }
 
-        // NORMALIZACIÓN ULTRA: Limpia todo rastro de puntuación y espacios raros
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
-
-            // Reemplazar saltos de línea y tabuladores por espacios simples
             string limpio = texto.Replace("\r", " ").Replace("\n", " ").Replace("\t", " ");
-
-            // Quitar comillas, puntos y comas
             limpio = limpio.Replace("\"", "").Replace(".", "").Replace(",", "");
-
-            // Estandarizar espacios múltiples
             limpio = Regex.Replace(limpio.Trim(), @"\s+", " ").ToUpper();
 
-            // Quitar acentos
             var normalizedString = limpio.Normalize(NormalizationForm.FormD);
             var stringBuilder = new StringBuilder();
             foreach (var c in normalizedString)
@@ -190,11 +180,7 @@ namespace CertiScan.ViewModels
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
-
-            // 1. Preparamos el nombre (Mayúsculas y sin acentos)
             string terminoLimpio = NormalizarTexto(TerminoBusqueda).Trim();
-
-            // 2. Obtenemos los documentos de la BD
             var documentosBd = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
 
             bool hallazgoUif = false;
@@ -202,23 +188,12 @@ namespace CertiScan.ViewModels
 
             foreach (var doc in documentosBd)
             {
-                string contenidoParaBuscar = string.Empty;
-                string nombreArchivoActual = string.Empty;
-
-                // EXTRAEMOS LOS DATOS DE FORMA SEGURA (Evita el error de hilos)
-                Application.Current.Dispatcher.Invoke(() => {
-                    contenidoParaBuscar = doc.Contenido ?? string.Empty;
-                    nombreArchivoActual = doc.NombreArchivo ?? "Archivo";
-                });
+                string contenidoParaBuscar = doc.Contenido ?? string.Empty;
+                string nombreArchivoActual = doc.NombreArchivo ?? "Archivo";
 
                 if (string.IsNullOrEmpty(contenidoParaBuscar)) continue;
 
-                // SOLUCIÓN AL "SIN COINCIDENCIAS":
-                // Usamos \b para indicar "límite de palabra". 
-                // Esto permite encontrar el nombre completo exacto aunque tenga 
-                // un número de lista o un punto al lado en el PDF.
                 string patron = $@"\b{Regex.Escape(terminoLimpio)}\b";
-
                 if (Regex.IsMatch(contenidoParaBuscar, patron, RegexOptions.IgnoreCase))
                 {
                     hallazgoUif = true;
@@ -227,7 +202,6 @@ namespace CertiScan.ViewModels
                 }
             }
 
-            // 3. Actualizamos la interfaz
             Application.Current.Dispatcher.Invoke(() =>
             {
                 ResultadoEncontrado = hallazgoUif;
@@ -235,9 +209,9 @@ namespace CertiScan.ViewModels
                 UpdateConstanciaButtonStates(true);
 
                 if (ResultadoEncontrado)
-                    MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\nSe localizó el nombre completo: {terminoLimpio}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"¡COINCIDENCIA ENCONTRADA!\nSe localizó el nombre: {terminoLimpio}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
                 else
-                    MessageBox.Show("No se encontraron coincidencias exactas para ese nombre.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("No se encontraron coincidencias exactas.", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
             });
 
             _databaseService.RegistrarBusqueda(TerminoBusqueda, hallazgoUif, SessionService.CurrentUserId, "UIF");
@@ -247,21 +221,11 @@ namespace CertiScan.ViewModels
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-
             string terminoParaBD = NormalizarTexto(TerminoBusquedaSat);
             var resultados = _databaseService.BuscarTermino(terminoParaBD, SessionService.CurrentUserId, "SAT");
 
             bool hallazgo = resultados.Count > 0;
-
-            if (hallazgo)
-            {
-                var resultadoCsv = resultados.FirstOrDefault(d => d.NombreArchivo.ToLower().EndsWith(".csv"));
-                _fuenteHallazgoSat = resultadoCsv != null ? resultadoCsv.NombreArchivo : resultados.First().NombreArchivo;
-            }
-            else
-            {
-                _fuenteHallazgoSat = string.Empty;
-            }
+            _fuenteHallazgoSat = hallazgo ? resultados.First().NombreArchivo : string.Empty;
 
             UpdateSatButtonStates(true, hallazgo);
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
@@ -290,7 +254,7 @@ namespace CertiScan.ViewModels
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
                 new PdfViewerWindow(tempPath, TerminoBusqueda).ShowDialog();
             }
-            catch (Exception ex) { MessageBox.Show("Error al crear constancia UIF: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error al crear constancia: " + ex.Message); }
         }
 
         private void GenerarReporteSat(bool esLimpio)
@@ -298,22 +262,14 @@ namespace CertiScan.ViewModels
             try
             {
                 if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
-
                 string nombreSeguro = LimpiarNombreParaRuta(TerminoBusquedaSat);
                 string nombreFinal = $"Reporte_SAT_{nombreSeguro}_{DateTime.Now.Ticks}.pdf";
                 string tempPath = Path.Combine(Path.GetTempPath(), nombreFinal);
 
                 var info = _databaseService.ObtenerDatosNotaria(SessionService.UsuarioLogueado.NotariaId);
-                var datos = new DatosNotaria
-                {
-                    NombreNotario = info?.NombreNotario ?? "No Configurado",
-                    NumeroNotaria = info?.NumeroNotaria ?? "0",
-                    DireccionCompleta = info?.Direccion ?? "No Configurada"
-                };
+                var datos = new DatosNotaria { NombreNotario = info?.NombreNotario ?? "No Configurado", NumeroNotaria = info?.NumeroNotaria ?? "0", DireccionCompleta = info?.Direccion ?? "No Configurada" };
 
-                List<string> listaParaPdf = esLimpio
-                    ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList()
-                    : new List<string> { _fuenteHallazgoSat };
+                List<string> listaParaPdf = esLimpio ? DocumentosSatMostrados.Select(d => d.NombreArchivo).ToList() : new List<string> { _fuenteHallazgoSat };
 
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, listaParaPdf, datos);
                 new PdfViewerWindow(tempPath, TerminoBusquedaSat).ShowDialog();
@@ -340,34 +296,30 @@ namespace CertiScan.ViewModels
 
                 if (ext == ".csv")
                 {
-                    var nombresLimpios = new StringBuilder();
-                    // Leer el archivo completo como una sola cadena para manejar saltos de línea dentro de campos
+                    var sbEstructurado = new StringBuilder();
                     string textoCompleto = File.ReadAllText(ruta, Encoding.GetEncoding("Windows-1252"));
-
-                    // Regex para separar líneas respetando comillas que contienen saltos de línea
                     var lineasCsv = Regex.Split(textoCompleto, @"\r?\n(?=(?:[^\""]*\""[^\""]*\"")*[^\""]*$)");
 
                     foreach (var linea in lineasCsv)
                     {
                         var campos = Regex.Split(linea, ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
-                        if (campos.Length > 2)
+                        // Formato SAT: [1] RFC, [2] Nombre, [3] Situación
+                        if (campos.Length >= 4)
                         {
-                            string nombreRaw = campos[2].Trim();
+                            string rfc = campos[1].Replace("\"", "").Trim();
+                            string nombreRaw = campos[2].Replace("\"", "").Trim();
+                            string situacion = campos[3].Replace("\"", "").Trim();
 
-                            if (!string.IsNullOrEmpty(nombreRaw) &&
-                                !nombreRaw.Contains("Nombre del Contribuyente") &&
-                                !nombreRaw.Contains("Información actualizada"))
+                            if (!nombreRaw.Contains("Nombre del Contribuyente") && !string.IsNullOrEmpty(nombreRaw))
                             {
                                 string normalizado = NormalizarTexto(nombreRaw);
-                                if (!string.IsNullOrEmpty(normalizado))
-                                {
-                                    nombresLimpios.AppendLine(normalizado);
-                                }
+                                // Guardamos con formato de Pipe | para que el ViewModel/DataGrid lo separe por secciones
+                                sbEstructurado.AppendLine($"{rfc.PadRight(15)} | {normalizado.PadRight(60)} | {situacion}");
                             }
                         }
                     }
-                    contenidoFinal = nombresLimpios.ToString();
+                    contenidoFinal = sbEstructurado.ToString();
                 }
                 else if (ext == ".pdf")
                 {
@@ -381,7 +333,7 @@ namespace CertiScan.ViewModels
 
                 await _databaseService.GuardarDocumentoAsync(Path.GetFileName(ruta), ruta, contenidoFinal, SessionService.CurrentUserId, modulo);
             }
-            catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); }
+            catch (Exception ex) { Application.Current.Dispatcher.Invoke(() => MessageBox.Show("Error al procesar: " + ex.Message)); }
         }
 
         public void LoadAllDocuments()
@@ -399,4 +351,4 @@ namespace CertiScan.ViewModels
         private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
         private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
     }
-} 
+}
