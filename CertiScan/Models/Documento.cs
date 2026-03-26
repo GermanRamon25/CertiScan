@@ -11,11 +11,8 @@ namespace CertiScan.Models
         public int Id { get; set; }
         public string NombreArchivo { get; set; }
         public DateTime FechaCarga { get; set; }
-        public string RutaArchivo { get; set; }
-        public string Contenido { get; set; }
 
-        // Nuevas propiedades para la organización por secciones
-        public string RFC { get; set; }
-        public string Situacion { get; set; }
+        public string RutaArchivo { get; set; }
+        public string Contenido { get;  set; }
     }
 }
