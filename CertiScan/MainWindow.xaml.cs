@@ -35,18 +35,20 @@ namespace CertiScan
 
         private void Menu_Checked(object sender, RoutedEventArgs e)
         {
-            var radioButton = sender as RadioButton;
-            if (radioButton == null || ViewUIF == null || ViewSAT == null) return;
+            
+            if (TxtTituloModulo == null) return;
 
-            if (radioButton.Name == "BtnUIF")
+            if (BtnUIF.IsChecked == true)
             {
-                ViewUIF.Visibility = Visibility.Visible;
-                ViewSAT.Visibility = Visibility.Collapsed;
+                TxtTituloModulo.Text = " | BÚSQUEDA - UNIDAD DE INTELIGENCIA FINANCIERA";
+                if (ViewUIF != null) ViewUIF.Visibility = Visibility.Visible;
+                if (ViewSAT != null) ViewSAT.Visibility = Visibility.Collapsed;
             }
-            else if (radioButton.Name == "BtnSAT")
+            else if (BtnSAT.IsChecked == true)
             {
-                ViewUIF.Visibility = Visibility.Collapsed;
-                ViewSAT.Visibility = Visibility.Visible;
+                TxtTituloModulo.Text = " | VERIFICACIÓN - ARTÍCULOS 69, 69-B y 69-B BIS";
+                if (ViewUIF != null) ViewUIF.Visibility = Visibility.Collapsed;
+                if (ViewSAT != null) ViewSAT.Visibility = Visibility.Visible;
             }
         }
 
@@ -57,12 +59,11 @@ namespace CertiScan
         {
             try
             {
-                // CORRECCIÓN: Ahora pasamos "UIF" al constructor de la ventana
+                
                 HistoryWindow ventanaHistorial = new HistoryWindow("UIF");
                 ventanaHistorial.Owner = this;
 
-                // El DataContext ya se asigna dentro del constructor de HistoryWindow, 
-                // pero si necesitas pasar los archivos actuales lo hacemos así:
+                
                 if (ventanaHistorial.DataContext is HistoryViewModel historyVm && DataContext is MainViewModel mainVm)
                 {
                     historyVm.NombresArchivosActuales = mainVm.DocumentosMostrados.Select(d => d.NombreArchivo).ToList();
@@ -84,7 +85,7 @@ namespace CertiScan
         {
             try
             {
-                // CORRECCIÓN: Ahora pasamos "SAT" al constructor de la ventana
+                
                 HistoryWindow ventanaHistorial = new HistoryWindow("SAT");
                 ventanaHistorial.Owner = this;
 
