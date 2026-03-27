@@ -123,7 +123,6 @@ namespace CertiScan.ViewModels
             LoadHistorial("UIF");
         }
 
-        // --- FUNCIONES DE NORMALIZACIÓN Y SEGURIDAD ---
         private string NormalizarTexto(string texto)
         {
             if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
@@ -139,7 +138,6 @@ namespace CertiScan.ViewModels
             return Regex.Replace(limpio, @"\s+", " ").Trim();
         }
 
-        // SOLUCIÓN AL ERROR: Esta es la función que faltaba
         private string LimpiarNombreParaRuta(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre)) return "Reporte";
@@ -179,12 +177,20 @@ namespace CertiScan.ViewModels
         private void Buscar()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusqueda)) return;
+
+            // VALIDACIÓN: Mínimo 2 palabras para Nombre Completo
+            string[] palabras = TerminoBusqueda.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (palabras.Length < 2)
+            {
+                MessageBox.Show("Por favor, ingrese el nombre completo (mínimo un nombre y un apellido) para asegurar la validez de la búsqueda.", "Aviso de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             string nombreBuscado = NormalizarTexto(TerminoBusqueda);
             var documentosBd = _databaseService.GetDocumentsByUser(SessionService.CurrentUserId, "UIF");
             bool hallazgoUif = false;
             List<string> archivosConCoincidencia = new List<string>();
 
-            // Lógica de coincidencia exacta por palabra completa (\b)
             string patron = $@"\b{Regex.Escape(nombreBuscado)}\b";
 
             foreach (var doc in documentosBd)
@@ -207,10 +213,11 @@ namespace CertiScan.ViewModels
                 _fuenteHallazgoUif = ResultadoEncontrado ? string.Join(", ", archivosConCoincidencia) : string.Empty;
                 UpdateConstanciaButtonStates(true);
 
+                // TARJETA DE AVISO RESTAURADA
                 if (ResultadoEncontrado)
-                    MessageBox.Show($"¡HALLAZGO CONFIRMADO!\nNombre completo: {nombreBuscado}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"¡COINCIDENCIA EXACTA ENCONTRADA!\nSe localizó el nombre completo: {nombreBuscado}\nEn: {_fuenteHallazgoUif}", "CertiScan - Módulo UIF", MessageBoxButton.OK, MessageBoxImage.Warning);
                 else
-                    MessageBox.Show($"Sin coincidencias exactas para: {nombreBuscado}", "CertiScan", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"No se encontraron coincidencias exactas para: {nombreBuscado}", "CertiScan - Módulo UIF", MessageBoxButton.OK, MessageBoxImage.Information);
             });
 
             _databaseService.RegistrarBusqueda(TerminoBusqueda, hallazgoUif, SessionService.CurrentUserId, "UIF");
@@ -220,6 +227,15 @@ namespace CertiScan.ViewModels
         private void BuscarSat()
         {
             if (string.IsNullOrWhiteSpace(TerminoBusquedaSat)) return;
+
+            // VALIDACIÓN SAT: Mínimo 2 palabras
+            string[] palabras = TerminoBusquedaSat.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (palabras.Length < 2)
+            {
+                MessageBox.Show("Ingrese nombre y apellido para realizar la búsqueda en los listados del SAT.", "Aviso de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             string terminoParaBD = NormalizarTexto(TerminoBusquedaSat);
             var resultados = _databaseService.BuscarTermino(terminoParaBD, SessionService.CurrentUserId, "SAT");
             bool hallazgo = resultados.Count > 0;
@@ -229,7 +245,17 @@ namespace CertiScan.ViewModels
                 _fuenteHallazgoSat = resultadoCsv != null ? resultadoCsv.NombreArchivo : resultados.First().NombreArchivo;
             }
             else _fuenteHallazgoSat = string.Empty;
-            UpdateSatButtonStates(true, hallazgo);
+
+            Application.Current.Dispatcher.Invoke(() => {
+                UpdateSatButtonStates(true, hallazgo);
+
+                // TARJETA DE AVISO RESTAURADA SAT
+                if (hallazgo)
+                    MessageBox.Show($"🚨 ¡HALLAZGO EN SAT!\nSe encontró coincidencia en: {_fuenteHallazgoSat}", "CertiScan - Módulo SAT", MessageBoxButton.OK, MessageBoxImage.Warning);
+                else
+                    MessageBox.Show("✅ Sin coincidencias en los listados del SAT.", "CertiScan - Módulo SAT", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+
             _databaseService.RegistrarBusqueda(TerminoBusquedaSat, hallazgo, SessionService.CurrentUserId, "SAT");
             LoadHistorial("SAT");
         }
@@ -248,7 +274,7 @@ namespace CertiScan.ViewModels
                 _pdfService.GenerarConstancia(tempPath, TerminoBusqueda, esAprobatoria, listaArchivos, datos);
                 new PdfViewerWindow(tempPath, TerminoBusqueda).ShowDialog();
             }
-            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error al generar PDF: " + ex.Message); }
         }
 
         private void GenerarReporteSat(bool esLimpio)
@@ -265,7 +291,7 @@ namespace CertiScan.ViewModels
                 _pdfSatService.GenerarReporteSat(tempPath, TerminoBusquedaSat, esLimpio, listaParaPdf, datos);
                 new PdfViewerWindow(tempPath, TerminoBusquedaSat).ShowDialog();
             }
-            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error al generar PDF SAT: " + ex.Message); }
         }
 
         private async Task CargarArchivoUniversalAsync(bool esParaSat)
