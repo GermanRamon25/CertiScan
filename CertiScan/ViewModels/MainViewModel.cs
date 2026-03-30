@@ -381,7 +381,46 @@ namespace CertiScan.ViewModels
 
         private void RefreshView() { TerminoBusqueda = string.Empty; UpdateConstanciaButtonStates(false); LoadAllDocuments(); LoadHistorial("UIF"); }
         private void RefreshViewSat() { TerminoBusquedaSat = string.Empty; UpdateSatButtonStates(false, false); LoadAllDocuments(); LoadHistorial("SAT"); }
-        private void DeletePdf() { if (SelectedDocumento != null) { _databaseService.DeleteDocument(SelectedDocumento.Id); RefreshView(); } }
-        private void DeletePdfSat() { if (SelectedDocumentoSat != null) { _databaseService.DeleteDocument(SelectedDocumentoSat.Id); RefreshViewSat(); } }
+        // --- ELIMINACIÓN MÓDULO UIF ---
+        private void DeletePdf()
+        {
+            if (SelectedDocumento != null)
+            {
+                // Cuadro de confirmación
+                var resultado = MessageBox.Show(
+                    $"¿Está seguro de que desea eliminar el archivo '{SelectedDocumento.NombreArchivo}'? Esta acción no se puede deshacer.",
+                    "Confirmar Eliminación",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (resultado == MessageBoxResult.Yes)
+                {
+                    _databaseService.DeleteDocument(SelectedDocumento.Id);
+                    RefreshView();
+                    MessageBox.Show("Archivo eliminado correctamente.", "Éxito");
+                }
+            }
+        }
+
+        // --- ELIMINACIÓN MÓDULO SAT ---
+        private void DeletePdfSat()
+        {
+            if (SelectedDocumentoSat != null)
+            {
+                // Cuadro de confirmación
+                var resultado = MessageBox.Show(
+                    $"¿Está seguro de que desea eliminar el listado del SAT '{SelectedDocumentoSat.NombreArchivo}'?",
+                    "Confirmar Eliminación",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (resultado == MessageBoxResult.Yes)
+                {
+                    _databaseService.DeleteDocument(SelectedDocumentoSat.Id);
+                    RefreshViewSat();
+                    MessageBox.Show("Listado eliminado correctamente.", "Éxito");
+                }
+            }
+        }
     }
 }
