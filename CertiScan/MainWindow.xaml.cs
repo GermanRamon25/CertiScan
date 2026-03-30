@@ -5,18 +5,37 @@ using CertiScan.Services;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.ComponentModel; // Necesario para detectar el cambio de propiedades
 
 namespace CertiScan
 {
     public partial class MainWindow : Window
     {
         private bool isSidebarOpen = false;
+        private MainViewModel _viewModel; // Guardamos una referencia al ViewModel
 
         public MainWindow()
         {
             InitializeComponent();
-            var viewModel = new MainViewModel();
-            DataContext = viewModel;
+            _viewModel = new MainViewModel();
+            DataContext = _viewModel;
+
+            // SUSCRIPCIÓN AL ESTADO DE CARGA (Punto 3)
+            _viewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(_viewModel.IsBusy))
+                {
+                    bool ocupado = _viewModel.IsBusy;
+
+                    // Controlamos la visibilidad de los elementos que agregamos al XAML
+                    MainProgressBar.Visibility = ocupado ? Visibility.Visible : Visibility.Collapsed;
+                    TxtCargando.Visibility = ocupado ? Visibility.Visible : Visibility.Collapsed;
+
+                    // Bloqueamos la interacción con la ventana mientras procesa para evitar errores
+                    this.IsHitTestVisible = !ocupado;
+                    this.Opacity = ocupado ? 0.8 : 1.0;
+                }
+            };
         }
 
         private void SidebarToggle_Click(object sender, RoutedEventArgs e)
@@ -35,7 +54,6 @@ namespace CertiScan
 
         private void Menu_Checked(object sender, RoutedEventArgs e)
         {
-
             // Validación crítica: Si los componentes aún no cargan, salimos del método
             if (TxtTituloModulo == null || ViewUIF == null || ViewSAT == null)
                 return;
@@ -61,11 +79,9 @@ namespace CertiScan
         {
             try
             {
-                
                 HistoryWindow ventanaHistorial = new HistoryWindow("UIF");
                 ventanaHistorial.Owner = this;
 
-                
                 if (ventanaHistorial.DataContext is HistoryViewModel historyVm && DataContext is MainViewModel mainVm)
                 {
                     historyVm.NombresArchivosActuales = mainVm.DocumentosMostrados.Select(d => d.NombreArchivo).ToList();
@@ -87,7 +103,6 @@ namespace CertiScan
         {
             try
             {
-                
                 HistoryWindow ventanaHistorial = new HistoryWindow("SAT");
                 ventanaHistorial.Owner = this;
 

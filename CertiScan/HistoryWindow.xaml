@@ -11,6 +11,7 @@
     <Window.Resources>
         <SolidColorBrush x:Key="PrimaryBlack" Color="#213449"/>
         <SolidColorBrush x:Key="BackgroundGray" Color="#F4F7F9"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#4A90E2"/>
 
         <Style TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
@@ -30,11 +31,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" 
-                                Background="{TemplateBinding Background}" 
-                                CornerRadius="16" 
-                                BorderBrush="#DCDFE3" 
-                                BorderThickness="1.2">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="16" BorderBrush="#DCDFE3" BorderThickness="1.2">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.1" Color="Black"/>
                             </Border.Effect>
@@ -45,29 +42,9 @@
                                         <Rectangle Fill="#C62828" Height="1" Width="10"/>
                                     </StackPanel>
                                 </Border>
-
-                                <TextBlock Text="Regenerar" 
-                                           Foreground="#2C3E50" 
-                                           VerticalAlignment="Center" 
-                                           FontSize="11" 
-                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="Regenerar" Foreground="#2C3E50" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E9ECEF"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#DEE2E6"/>
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value>
-                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -101,38 +78,51 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="White" CornerRadius="20" Margin="0,0,0,15" Padding="15,5" BorderBrush="#DDD" BorderThickness="1">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="🔍" VerticalAlignment="Center" Margin="5,0,10,0" Opacity="0.5"/>
-                        <TextBox Grid.Column="1" 
-                                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                                 BorderThickness="0" 
-                                 VerticalAlignment="Center"
-                                 FontSize="14"
-                                 Background="Transparent"/>
-                    </Grid>
-                </Border>
+                <Grid Grid.Row="0" Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <DataGrid Grid.Row="1" 
+                    <Border Background="White" CornerRadius="20" Padding="15,5" BorderBrush="#DDD" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="5,0,10,0" Opacity="0.5"/>
+                            <TextBox Grid.Column="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                     BorderThickness="0" VerticalAlignment="Center" FontSize="14" Background="Transparent"/>
+                        </Grid>
+                    </Border>
+
+                    <Button Grid.Column="1" 
+                            Content="📊 Exportar CSV" 
+                            Margin="15,0,0,0" 
+                            Padding="20,0"
+                            Height="38"
+                            Cursor="Hand"
+                            Click="ExportarCSV_Click"
+                            Background="{StaticResource AccentBlue}"
+                            Foreground="White"
+                            FontWeight="Bold">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="19"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+                <DataGrid x:Name="dgHistorial" Grid.Row="1" 
                           ItemsSource="{Binding FilteredHistorial}"
-                          AutoGenerateColumns="False"
-                          IsReadOnly="True"
-                          SelectionUnit="FullRow" 
-                          SelectionMode="Single"
-                          CanUserAddRows="False"
-                          Background="White"
-                          GridLinesVisibility="None"
-                          HeadersVisibility="Column"
-                          RowHeight="42">
+                          AutoGenerateColumns="False" IsReadOnly="True" SelectionUnit="FullRow" 
+                          SelectionMode="Single" CanUserAddRows="False" Background="White"
+                          GridLinesVisibility="None" HeadersVisibility="Column" RowHeight="42">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaCarga, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
                         <DataGridTextColumn Header="Usuario" Binding="{Binding NombreUsuario}" Width="120"/>
                         <DataGridTextColumn Header="Término" Binding="{Binding TerminoBuscado}" Width="*"/>
-
                         <DataGridTemplateColumn Header="Resultado" Width="115">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -152,19 +142,15 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-
                         <DataGridTemplateColumn Header="Acción" Width="145">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource RegenerateButtonStyle}"
                                             Command="{Binding DataContext.RegenerateCertificateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}"
-                                            HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"/>
+                                            CommandParameter="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

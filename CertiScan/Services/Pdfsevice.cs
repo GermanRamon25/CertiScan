@@ -37,6 +37,15 @@ namespace CertiScan.Services
 
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
+            // --- VALIDACIÓN DE TAMAÑO (Punto 2) ---
+            const long MAX_FILE_SIZE = 25 * 1024 * 1024; // Límite de 25MB
+            FileInfo fileInfo = new FileInfo(rutaArchivo);
+
+            if (fileInfo.Length > MAX_FILE_SIZE)
+            {
+                throw new Exception("El archivo es demasiado grande. El límite permitido es de 25MB para garantizar el rendimiento del sistema.");
+            }
+
             var textoProcesado = new StringBuilder();
             try
             {
@@ -44,9 +53,13 @@ namespace CertiScan.Services
                 {
                     foreach (Page page in document.GetPages())
                     {
-                        var lines = page.GetWords()
-                                        .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 2))
-                                        .OrderByDescending(g => g.Key);
+                        var words = page.GetWords();
+                        if (words == null || !words.Any()) continue;
+
+                        var lines = words
+                                    .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 2))
+                                    .OrderByDescending(g => g.Key);
+
                         foreach (var line in lines)
                         {
                             string lineText = string.Join(" ", line.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text));
@@ -58,7 +71,7 @@ namespace CertiScan.Services
             }
             catch (Exception ex)
             {
-                return $"Error al extraer texto: {ex.Message}";
+                throw new Exception($"Error al extraer texto del PDF: {ex.Message}");
             }
             return textoProcesado.ToString();
         }
@@ -131,7 +144,6 @@ namespace CertiScan.Services
                                 });
                             });
 
-                            // RESULTADO SI/NO (Texto simple, sin recuadros)
                             col.Item().PaddingTop(15).Text(text =>
                             {
                                 if (esAprobatoria)
@@ -146,10 +158,8 @@ namespace CertiScan.Services
                                 }
                             });
 
-                            // --- RENGLÓN DEL ARCHIVO (Sin cuadros, solo texto) ---
                             if (!esAprobatoria && nombresArchivosEncontrados != null && nombresArchivosEncontrados.Any())
                             {
-                                // Usamos un Padding pequeño para que quede justo debajo, como un renglón más
                                 col.Item().PaddingTop(10).Text(text =>
                                 {
                                     text.Span("La coincidencia fue encontrada en el/los siguiente(s) archivo(s) UIF: ").Bold();
@@ -157,7 +167,6 @@ namespace CertiScan.Services
                                 });
                             }
 
-                            // --- FIRMA ---
                             col.Item().PaddingTop(60).AlignCenter().Column(signatureCol =>
                             {
                                 signatureCol.Item().AlignCenter().Text("Atentamente:");
