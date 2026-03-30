@@ -35,8 +35,10 @@ namespace CertiScan
 
         private void Menu_Checked(object sender, RoutedEventArgs e)
         {
-            
-            if (TxtTituloModulo == null) return;
+
+            // Validación crítica: Si los componentes aún no cargan, salimos del método
+            if (TxtTituloModulo == null || ViewUIF == null || ViewSAT == null)
+                return;
 
             if (BtnUIF.IsChecked == true)
             {
