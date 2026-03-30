@@ -160,7 +160,7 @@
 
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="TxtTituloModulo" Text=" | BÚSQUEDA UIF" Foreground="#BBBBBB" FontSize="16" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtTituloModulo" Text=" | BÚSQUEDAS" Foreground="#BBBBBB" FontSize="16" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
 
