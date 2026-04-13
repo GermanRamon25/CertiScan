@@ -14,5 +14,10 @@ namespace CertiScan.Models
         public string Direccion { get; set; }
         public string Telefono { get; set; }
         public string Email { get; set; }
+
+
+        // CAMPOS NUEVOS PARA EL CONTROL DE ANUALIDADES
+        public DateTime FechaVencimiento { get; set; }
+        public bool EstaActivo { get; set; }
     }
 }

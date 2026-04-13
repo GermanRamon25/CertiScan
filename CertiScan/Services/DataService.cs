@@ -17,12 +17,17 @@ namespace CertiScan.Services
         // ==========================================
         // GESTIÓN DE NOTARÍA
         // ==========================================
+
+        /// <summary>
+        /// Obtiene la información de la notaría incluyendo los campos de control de anualidad.
+        /// </summary>
         public NotariaInfo ObtenerDatosNotaria(int notariaId)
         {
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var query = "SELECT Id, NombreNotario, NumeroNotaria, Direccion, Telefono, Email FROM Notaria WHERE Id = @Id";
+                // SELECT actualizado para incluir FechaVencimiento y EstaActivo
+                var query = "SELECT Id, NombreNotario, NumeroNotaria, Direccion, Telefono, Email, FechaVencimiento, EstaActivo FROM Notaria WHERE Id = @Id";
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Id", notariaId);
@@ -37,13 +42,47 @@ namespace CertiScan.Services
                                 NumeroNotaria = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                 Direccion = reader.IsDBNull(3) ? "" : reader.GetString(3),
                                 Telefono = reader.IsDBNull(4) ? "" : reader.GetString(4),
-                                Email = reader.IsDBNull(5) ? "" : reader.GetString(5)
+                                Email = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                                // Nuevos campos de suscripción
+                                FechaVencimiento = reader.GetDateTime(6),
+                                EstaActivo = reader.GetBoolean(7)
                             };
                         }
                     }
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Valida si la notaría tiene permitido el acceso según su fecha de vencimiento y estado activo.
+        /// </summary>
+        public bool ValidarAccesoSistema(int notariaId, out string mensaje)
+        {
+            mensaje = string.Empty;
+            var info = ObtenerDatosNotaria(notariaId);
+
+            if (info == null)
+            {
+                mensaje = "Error: No se encontró información de la notaría asociada.";
+                return false;
+            }
+
+            // 1. Validar el Kill Switch manual
+            if (!info.EstaActivo)
+            {
+                mensaje = "ACCESO DENEGADO: El sistema ha sido desactivado por el administrador.";
+                return false;
+            }
+
+            // 2. Validar fecha de vencimiento anual
+            if (DateTime.Now > info.FechaVencimiento)
+            {
+                mensaje = $"SUSCRIPCIÓN VENCIDA: Su anualidad terminó el {info.FechaVencimiento:dd/MM/yyyy}.\nContacte a soporte para renovar su servicio.";
+                return false;
+            }
+
+            return true;
         }
 
         public bool ExisteTelefonoEnOtraNotaria(string telefono, int miNotariaId)
@@ -121,12 +160,14 @@ namespace CertiScan.Services
                 SqlTransaction transaction = connection.BeginTransaction();
                 try
                 {
-                    var insertNotariaQuery = "INSERT INTO Notaria (NombreNotario) OUTPUT INSERTED.Id VALUES ('Nueva Notaría')";
+                    // Al insertar una nueva notaría, se le da 1 año de vigencia por defecto
+                    var insertNotariaQuery = "INSERT INTO Notaria (NombreNotario, FechaVencimiento, EstaActivo) OUTPUT INSERTED.Id VALUES ('Nueva Notaría', DATEADD(year, 1, GETDATE()), 1)";
                     int newNotariaId;
                     using (var notariaCommand = new SqlCommand(insertNotariaQuery, connection, transaction))
                     {
                         newNotariaId = Convert.ToInt32(notariaCommand.ExecuteScalar());
                     }
+
                     var insertUserQuery = "INSERT INTO Usuarios (NombreCompleto, NombreUsuario, Password, NotariaId) VALUES (@FullName, @Username, @Password, @NotariaId)";
                     using (var userCommand = new SqlCommand(insertUserQuery, connection, transaction))
                     {
@@ -200,6 +241,7 @@ namespace CertiScan.Services
             using (var connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
+                // OPTIMIZACIÓN: Se puede cambiar a CONTAINS si se configuró el FullText Index
                 var query = @"SELECT TOP 100 Id, NombreArchivo, FechaCarga, ContenidoTexto
                              FROM Documentos 
                              WHERE UsuarioId = @UID AND TipoModulo = @TM 
