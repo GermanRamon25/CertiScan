@@ -23,17 +23,8 @@ namespace CertiScan.Services
 
     public class PdfService
     {
-        static PdfService()
-        {
-            try
-            {
-                QuestPDF.Settings.License = LicenseType.Community;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Advertencia] No se pudo inicializar QuestPDF: {ex.Message}");
-            }
-        }
+        // El constructor estático conflictivo ha sido removido completamente de aquí,
+        // ya que la licencia ahora se registra globalmente al arrancar en App.xaml.cs.
 
         public string ExtraerTextoDePdf(string rutaArchivo)
         {
@@ -85,9 +76,28 @@ namespace CertiScan.Services
                 datos = new DatosNotaria { NombreNotario = "DATO NO CONFIGURADO", NumeroNotaria = "0", DireccionCompleta = "CONFIGURAR EN MENU NOTARIA", DatosContacto = "" };
             }
 
-            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes", "CERTISCAN.LOGO.png");
+            // ---------------------------------------------------------------------------
+            // CAPA DE PROTECCIÓN HERMÉTICA PARA CARPETA DE IMÁGENES / LOGOTIPO
+            // ---------------------------------------------------------------------------
             byte[] logoData = null;
-            try { if (File.Exists(logoPath)) logoData = File.ReadAllBytes(logoPath); } catch { }
+            try
+            {
+                string carpetaImagenes = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Imagenes");
+                string logoPath = Path.Combine(carpetaImagenes, "CERTISCAN.LOGO.png");
+
+                // Validamos explícitamente que la carpeta exista Y que el archivo exista antes de leer
+                if (Directory.Exists(carpetaImagenes) && File.Exists(logoPath))
+                {
+                    logoData = File.ReadAllBytes(logoPath);
+                }
+            }
+            catch
+            {
+                // Si la carpeta o la imagen no existen en el cliente, el catch la atrapa de forma segura.
+                // El sistema NO se cerrará; el PDF simplemente continuará su diseño sin logo.
+                logoData = null;
+            }
+            // ---------------------------------------------------------------------------
 
             try
             {

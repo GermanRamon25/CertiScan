@@ -59,7 +59,7 @@ namespace CertiScan.Services
         /// </summary>
         public bool ValidarAccesoSistema(int notariaId, out string mensaje)
         {
-            mensaje = string.Empty;
+            mensaje = string.Empty;  
             var info = ObtenerDatosNotaria(notariaId);
 
             if (info == null)
