@@ -101,6 +101,31 @@ namespace CertiScan
             string patron = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
             return Regex.IsMatch(email, patron);
         }
+        private void SoloNumeros_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            // Bloquea cualquier carácter que NO sea un número del 0 al 9
+            Regex regex = new Regex("[^0-9]+");
+            e.Handled = regex.IsMatch(e.Text);
+        }
+
+        private void TextBox_Pasting(object sender, DataObjectPastingEventArgs e)
+        {
+            // Si intentan pegar texto con CTRL+V o clic derecho, validamos que sean puros números
+            if (e.DataObject.GetDataPresent(typeof(string)))
+            {
+                string text = (string)e.DataObject.GetData(typeof(string));
+                Regex regex = new Regex("[^0-9]+");
+
+                if (regex.IsMatch(text))
+                {
+                    e.CancelCommand(); // Cancela la acción si lleva letras o caracteres especiales
+                }
+            }
+            else
+            {
+                e.CancelCommand();
+            }
+        }
 
         private void Cancelar_Click(object sender, RoutedEventArgs e)
         {
